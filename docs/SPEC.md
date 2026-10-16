@@ -17,7 +17,7 @@ Let a Pi user discover ARD resources across **any** ARD registry the owner confi
 | R2 | Search sends the ARD §5.3.2 body `{query:{text,filter?}, federation:"referrals", pageSize≤100}`; referrals are shown, never followed. An empty query is rejected client-side. | client.test |
 | R3 | Every registry error surfaces its HTTP status and ARD code (Appendix B), with Retry-After when sent. There are no retries and no silent fallback to another registry. | client.test "errors" |
 | R4 | Catalog: `ard.json` first, then `ai-catalog.json`. The fallback reason is reported. Invalid entries are listed separately. | client.test catalog |
-| R5 | `ard_catalog` fetches only from trusted domains. | e2e via extension |
+| R5 | `ard_catalog` fetches only from trusted domains. | pi-e2e.test |
 | R6 | HTTPS only (loopback http allowed). No URL credentials. Same-host GET redirects only. Timeout and size caps. | client.test http safety |
 | R7 | An entry is installable only if structurally valid and, when a trustManifest is present, its identity is bound to the publisher (§4.5.1). | entry.test, install.test |
 | R8 | Every write or registration requires `ctx.ui.confirm`. There is no bypass parameter. No UI means refuse. | install.test, pi-e2e.test, rpc-smoke |

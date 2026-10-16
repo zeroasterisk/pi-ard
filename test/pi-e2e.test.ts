@@ -127,16 +127,20 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 		}
 	});
 
-	it("without a UI (print mode) install refuses instead of auto-approving", async () => {
+	it("without a UI install refuses; ard_catalog never fetches an untrusted domain (SPEC R5, R8)", async () => {
 		const h = await piHarness({ hasUI: false, ard: { http: routedHttp(mock) } });
 		cfg(h.agentDir);
 		try {
 			h.setResponses([
+				fauxAssistantMessage(fauxToolCall("ard_catalog", { domain: "untrusted.example.org" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage(fauxToolCall("ard_install", { identifier: "urn:air:example.com:skill:pdf-tools" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage("ok"),
 			]);
+			const before = mock.requests.length;
 			await h.session.prompt("install");
+			assert.match(h.toolResults("ard_catalog")[0]!, /untrusted\.example\.org is not in trustedDomains/);
+			assert.ok(!mock.requests.slice(before).some((r) => r.path.startsWith("/untrusted.example.org")), "no request to the untrusted domain");
 			assert.match(h.toolResults("ard_install")[0]!, /needs an interactive Pi UI/);
 		} finally {
 			h.dispose();

@@ -205,11 +205,11 @@ describe("install: MCP", () => {
 	});
 
 	it("planMcp: stdio pins version; hostile cards cannot pick the program", () => {
-		const s = planMcp(fixtureJson("live/mcp-registry-markitdown.json"), { identifier: "urn:air:a.com:m:x" }, "u")!;
+		const s = planMcp(fixtureJson("live/mcp-registry-markitdown.json"), { identifier: "urn:air:a.com:m:x" })!;
 		assert.deepEqual([s.transport, s.command, s.args], ["stdio", "uvx", ["markitdown-mcp==0.0.1a4"]]);
-		assert.equal(planMcp({ name: "x" }, { identifier: "urn:air:a.com:m:x" }, "u"), undefined);
+		assert.equal(planMcp({ name: "x" }, { identifier: "urn:air:a.com:m:x" }), undefined);
 		// A card must not pick the program or inject flags: runtimeHint is ignored, ids are validated.
-		const hostile = (p: Record<string, unknown>) => planMcp({ packages: [{ transport: { type: "stdio" }, ...p }] }, { identifier: "urn:air:a.com:m:x" }, "u");
+		const hostile = (p: Record<string, unknown>) => planMcp({ packages: [{ transport: { type: "stdio" }, ...p }] }, { identifier: "urn:air:a.com:m:x" });
 		assert.deepEqual(hostile({ identifier: "x", registryType: "pypi", runtimeHint: "bash" })?.command, "uvx");
 		assert.equal(hostile({ identifier: "-c", registryType: "pypi" }), undefined);
 		assert.equal(hostile({ identifier: "a b", registryType: "npm" }), undefined);

@@ -172,7 +172,6 @@ export interface McpPlan {
 	command?: string;
 	args?: string[];
 	description?: string;
-	cardUrl: string;
 }
 
 const MCP_NAME = /^[A-Za-z0-9_-]+$/;
@@ -201,7 +200,7 @@ const PKG_VER = /^[\w.+-]+$/;
  * the first stdio package. The command comes only from registryType (npm/pypi/oci), never from the
  * card's free-form `runtimeHint`: a card saying `runtimeHint: "bash"` must not choose the program.
  */
-export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPlan | undefined {
+export function planMcp(card: unknown, entry: ArdEntry): McpPlan | undefined {
 	if (!card || typeof card !== "object") return undefined;
 	const doc = ((card as { server?: unknown }).server ?? card) as Record<string, unknown>;
 	const name = serverName(entry);
@@ -209,7 +208,7 @@ export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPla
 	const remotes = Array.isArray(doc.remotes) ? (doc.remotes as Array<Record<string, unknown>>) : [];
 	const remote = remotes.find((r) => typeof r.url === "string" && (r.type === "streamable-http" || r.type === "http")) ??
 		remotes.find((r) => typeof r.url === "string");
-	if (remote) return { name, transport: "http", url: String(remote.url), description, cardUrl };
+	if (remote) return { name, transport: "http", url: String(remote.url), description };
 	const pkgs = Array.isArray(doc.packages) ? (doc.packages as Array<Record<string, unknown>>) : [];
 	for (const pkg of pkgs) {
 		const runner = STDIO_RUNNERS[String(pkg.registryType)];
@@ -218,7 +217,7 @@ export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPla
 		if (!runner || (pkg.transport as { type?: string } | undefined)?.type !== "stdio" || !PKG_ID.test(id)) continue;
 		const spec = !ver || runner === "docker" ? id : runner === "uvx" ? `${id}==${ver}` : `${id}@${ver}`;
 		const args = runner === "npx" ? ["-y", spec] : runner === "docker" ? ["run", "-i", "--rm", spec] : [spec];
-		return { name, transport: "stdio", command: runner, args, description, cardUrl };
+		return { name, transport: "stdio", command: runner, args, description };
 	}
 	return undefined;
 }
@@ -250,7 +249,7 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 	}
 	if (card === undefined) card = (await getJson(cardUrl, ctx.http)).json;
 
-	const plan = planMcp(card, entry, cardUrl);
+	const plan = planMcp(card, entry);
 	if (!plan) return { status: "refused", reason: `No usable remote or stdio package in server card ${cardUrl}` };
 	if (plan.transport === "http") assertSafeUrl(plan.url!);
 
