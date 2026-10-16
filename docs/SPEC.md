@@ -21,7 +21,7 @@ Let a Pi user discover ARD resources across **any** ARD registry the owner confi
 | R6 | HTTPS only (loopback http allowed). No URL credentials. Same-host GET redirects only. Timeout and size caps. | client.test http safety |
 | R7 | An entry is installable only if structurally valid and, when a trustManifest is present, its identity is bound to the publisher (§4.5.1). | entry.test, install.test |
 | R8 | Every write or registration requires `ctx.ui.confirm`. There is no bypass parameter. No UI means refuse. | install.test, pi-e2e.test, rpc-smoke |
-| R9 | `ard_install` accepts only identifiers returned this session by search or catalog, so the model cannot supply an entry body. | pi-e2e.test |
+| R9 | `ard_install` accepts only identifiers returned this session by search or catalog, so the model cannot supply an entry body. If two sources return one identifier with different locations, it is not installable. | pi-e2e.test |
 | R10 | The confirm prompt shows identifier, publisher, fetch URL, destination, trust status (and reason) and signature status. A declared manifest lists its attestation types and is labeled "signature and attestations NOT verified". | install.test |
 | R11 | Skills: confirm before fetch. Source resolution never guesses. Frontmatter and a valid name are required. Existing skills are never overwritten. sha256 and URL are recorded in lock.json. | install.test |
 | R12 | MCP: an untrusted card host is confirmed before the card is fetched. Remotes must be HTTPS. stdio needs a second confirmation. Registration is session-scoped and the persist command is returned. | install.test |

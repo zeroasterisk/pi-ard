@@ -33,9 +33,18 @@ export function createPiArd(opts: PiArdOptions = {}) {
 	return function piArd(pi: ExtensionAPI): void {
 		const agentDir = () => opts.agentDir ?? getAgentDir();
 		const cfg = () => loadConfig(configPath(agentDir()));
-		/** Entries seen this session, keyed by identifier. Install only accepts these. */
-		const seen = new Map<string, ArdEntry>();
-		const remember = (es: ArdEntry[]) => es.forEach((e) => seen.set(e.identifier, e));
+		/**
+		 * Entries seen this session, keyed by identifier. Install only accepts these. Anyone can return
+		 * any identifier, so a later result must not silently replace one the user already saw: if two
+		 * sources disagree on where an identifier points, it is marked conflicting and not installable.
+		 */
+		const seen = new Map<string, ArdEntry | "conflict">();
+		const where = (e: ArdEntry) => JSON.stringify([e.type, e.url, e.data, e.metadata?.raw_url]);
+		const remember = (es: ArdEntry[]) =>
+			es.forEach((e) => {
+				const prev = seen.get(e.identifier);
+				seen.set(e.identifier, prev === undefined || (prev !== "conflict" && where(prev) === where(e)) ? e : "conflict");
+			});
 
 		pi.registerTool(
 			defineTool({
@@ -112,6 +121,7 @@ export function createPiArd(opts: PiArdOptions = {}) {
 				async execute(_id, p, signal, _onUpdate, ctx) {
 					const entry = seen.get(p.identifier);
 					if (!entry) throw new Error(`Unknown identifier ${p.identifier}. Run ard_search or ard_catalog first; install only accepts entries seen this session.`);
+					if (entry === "conflict") throw new Error(`${p.identifier} was returned with different urls by different sources this session. Refusing; ask the user which source to trust.`);
 					if (!ctx.hasUI) throw new Error("ard_install needs an interactive Pi UI to ask for confirmation. Nothing was installed.");
 					const outcome = await install(entry, {
 						config: cfg(),

@@ -76,6 +76,30 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 		}
 	});
 
+	it("an identifier two sources point to different urls is not installable (no silent last-write-wins)", async () => {
+		const m = await mockServer({
+			"POST /reg.example.com/search": () => ({ json: { results: [{ identifier: "urn:air:example.com:skill:pdf-tools", type: "application/agent-skills+md", url: "https://example.com/skills/pdf-tools/SKILL.md" }] } }),
+			"POST /other.example.org/search": () => ({ json: { results: [{ identifier: "urn:air:example.com:skill:pdf-tools", type: "application/agent-skills+md", url: "https://example.com/evil/SKILL.md" }] } }),
+		});
+		const h = await piHarness({ answers: [], ard: { http: routedHttp(m) } });
+		mkdirSync(join(h.agentDir, "pi-ard"), { recursive: true });
+		writeFileSync(join(h.agentDir, "pi-ard", "config.json"), JSON.stringify({ registries: [{ name: "a", url: "https://reg.example.com" }, { name: "b", url: "https://other.example.org" }], trustedDomains: ["example.com"] }));
+		try {
+			h.setResponses([
+				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf", registry: "b" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage(fauxToolCall("ard_install", { identifier: "urn:air:example.com:skill:pdf-tools" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage("ok"),
+			]);
+			await h.session.prompt("install pdf-tools");
+			assert.match(h.toolResults("ard_install")[0]!, /different urls by different sources/);
+			assert.equal(h.confirms.length, 0);
+		} finally {
+			h.dispose();
+			await m.close();
+		}
+	});
+
 	it("install of an identifier never returned by search is rejected (model cannot fabricate entries)", async () => {
 		const h = await piHarness({ answers: [], ard: { http: routedHttp(mock) } });
 		cfg(h.agentDir);
