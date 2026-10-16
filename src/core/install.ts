@@ -189,12 +189,16 @@ function serverName(entry: ArdEntry): string {
 	return MCP_NAME.test(n) ? n : "ard-server";
 }
 
-const STDIO_RUNNERS: Record<string, string> = { npm: "npx", pypi: "uvx", oci: "docker" };
+const STDIO_RUNNERS: Record<string, "npx" | "uvx" | "docker"> = { npm: "npx", pypi: "uvx", oci: "docker" };
+/** npm (@scope/name), PyPI and OCI names. No leading "-" (would be parsed as a flag), no spaces or shell syntax. */
+const PKG_ID = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w./:@-]*$/i;
+const PKG_VER = /^[\w.+-]+$/;
 
 /**
  * Map an MCP server card (static.modelcontextprotocol.io server-card schema) or an MCP registry
  * server.json (`{server:{...}}`) to one candidate. Prefers a streamable-http remote; falls back to
- * the first stdio package. Returns undefined if nothing usable.
+ * the first stdio package. The command comes only from registryType (npm/pypi/oci), never from the
+ * card's free-form `runtimeHint`: a card saying `runtimeHint: "bash"` must not choose the program.
  */
 export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPlan | undefined {
 	if (!card || typeof card !== "object") return undefined;
@@ -206,13 +210,12 @@ export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPla
 		remotes.find((r) => typeof r.url === "string");
 	if (remote) return { name, transport: "http", url: String(remote.url), description, cardUrl };
 	const pkgs = Array.isArray(doc.packages) ? (doc.packages as Array<Record<string, unknown>>) : [];
-	const pkg = pkgs.find((p) => typeof p.identifier === "string" && (p.transport as { type?: string } | undefined)?.type === "stdio");
-	if (pkg) {
-		const runner = typeof pkg.runtimeHint === "string" ? pkg.runtimeHint : STDIO_RUNNERS[String(pkg.registryType)];
-		if (!runner) return undefined;
+	for (const pkg of pkgs) {
+		const runner = STDIO_RUNNERS[String(pkg.registryType)];
 		const id = String(pkg.identifier);
-		const ver = typeof pkg.version === "string" ? pkg.version : undefined;
-		const spec = ver ? (runner === "uvx" ? `${id}==${ver}` : runner === "npx" ? `${id}@${ver}` : id) : id;
+		const ver = typeof pkg.version === "string" && PKG_VER.test(pkg.version) ? pkg.version : undefined;
+		if (!runner || (pkg.transport as { type?: string } | undefined)?.type !== "stdio" || !PKG_ID.test(id)) continue;
+		const spec = !ver || runner === "docker" ? id : runner === "uvx" ? `${id}==${ver}` : `${id}@${ver}`;
 		const args = runner === "npx" ? ["-y", spec] : runner === "docker" ? ["run", "-i", "--rm", spec] : [spec];
 		return { name, transport: "stdio", command: runner, args, description, cardUrl };
 	}
