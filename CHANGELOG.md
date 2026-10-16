@@ -4,6 +4,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Added
+- `docs/SCENARIOS.md` + `examples/huggingface-scenarios.ts`: five live Hugging Face scenarios with exact confirm text.
+- `demo/`: asciicast of a real Pi session (install, search, confirm, install skill, add MCP) and the PTY recorder that made it.
+
 ### Changed
 - Search sends `federation: "referrals"` (was `"none"`, with an undocumented per-registry override). Referrals are shown, never followed; `"auto"` would merge results from registries the user never chose. The `federation` config key is removed.
 
