@@ -139,8 +139,8 @@ export async function request(rawUrl: string, init: RequestInit, opts: HttpOptio
 	throw new ArdHttpError("Too many redirects", rawUrl);
 }
 
-export async function getJson(url: string, opts?: HttpOptions): Promise<{ url: string; json: unknown }> {
-	const r = await request(url, { method: "GET", headers: { accept: "application/json" } }, opts);
+async function requestJson(url: string, init: RequestInit, opts?: HttpOptions): Promise<{ url: string; json: unknown }> {
+	const r = await request(url, { ...init, headers: { accept: "application/json", ...(init.headers as Record<string, string>) } }, opts);
 	try {
 		return { url: r.url, json: JSON.parse(r.body) };
 	} catch {
@@ -148,15 +148,7 @@ export async function getJson(url: string, opts?: HttpOptions): Promise<{ url: s
 	}
 }
 
-export async function postJson(url: string, payload: unknown, opts?: HttpOptions): Promise<unknown> {
-	const r = await request(
-		url,
-		{ method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(payload) },
-		opts,
-	);
-	try {
-		return JSON.parse(r.body);
-	} catch {
-		throw new ArdHttpError(`Not JSON (content-type ${r.contentType || "none"})`, r.url, r.status);
-	}
-}
+export const getJson = (url: string, opts?: HttpOptions) => requestJson(url, { method: "GET" }, opts);
+
+export const postJson = async (url: string, payload: unknown, opts?: HttpOptions) =>
+	(await requestJson(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) }, opts)).json;
