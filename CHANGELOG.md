@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 ## [Unreleased]
 
 ### Fixed
+- MCP trust is assessed against the server URL the tools will call, not just the card URL. A card from a trusted host (or inline `data`) naming a remote on another host was shown as "trusted".
 - MCP server names come from the ARD identifier, not the card. HF's official card is named `huggingface.co/mcp`, which registered as `mcp` (tools `mcp__mcp__*`); it is now `huggingface-hub`.
 - Skill installs report bundled files the SKILL.md cites but that were not installed (e.g. HF `huggingface-paper-publisher` → `scripts/paper_manager.py`). Only SKILL.md is fetched; the result used to read as a complete install.
 - Skills without a frontmatter `description` are refused. Pi silently skips them, so they used to install "successfully" and never load. Frontmatter is now parsed with Pi's own `parseFrontmatter` (handles YAML folding) instead of a regex.

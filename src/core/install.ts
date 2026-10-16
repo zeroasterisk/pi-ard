@@ -41,8 +41,8 @@ export function assessTrust(entry: ArdEntry, fetchUrl: string | undefined, confi
 	const urlOk = urlHost ? isTrustedDomain(urlHost, config) : true;
 	const reasons: string[] = [];
 	if (!pubOk) reasons.push(`publisher ${check.publisher ?? "?"} not in trustedDomains`);
-	if (!urlOk) reasons.push(`fetch host ${urlHost} not in trustedDomains`);
-	return { check, trusted: pubOk && urlOk, trustReason: reasons.join("; ") || "publisher and fetch host are trusted" };
+	if (!urlOk) reasons.push(`host ${urlHost} not in trustedDomains`);
+	return { check, trusted: pubOk && urlOk, trustReason: reasons.join("; ") || "publisher and host are trusted" };
 }
 
 // ---------- skills ----------
@@ -251,15 +251,18 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 	if (plan.transport === "http") assertHttps(plan.url!);
 
 	const what = plan.transport === "http" ? plan.url! : `${plan.command} ${plan.args!.join(" ")}`;
+	// Trust is about where tool calls go, not only where the card came from: re-assess against the
+	// server URL. A card from a trusted host (or inline data) may name any remote.
+	const st = plan.transport === "http" ? assessTrust(entry, plan.url, ctx.config) : t;
 	const ok = await ctx.confirm(
-		`Add MCP server "${plan.name}" for this session?`,
+		st.trusted ? `Add MCP server "${plan.name}" for this session?` : `Add MCP server "${plan.name}" from UNTRUSTED source?`,
 		confirmBody(
 			[
 				["Identifier", entry.identifier],
 				["Publisher", t.check.publisher],
 				["Card", cardUrl],
 				[plan.transport === "http" ? "Server URL" : "Command", what],
-				["Trust", t.trusted ? "trusted" : `UNTRUSTED SOURCE (${t.trustReason})`],
+				["Trust", st.trusted ? "trusted" : `UNTRUSTED SOURCE (${st.trustReason})`],
 				["Signature", signatureLabel(t.check)],
 			],
 			plan.transport === "stdio"

@@ -99,7 +99,7 @@ describe("install: skills", () => {
 	it("trusted publisher but artifact on an untrusted host counts as untrusted", async () => {
 		const t = ctx(mock, [false]);
 		await install({ ...skillEntry, url: "https://untrusted.io/s/SKILL.md" }, t.c);
-		assert.match(t.asked[0]!, /fetch host untrusted\.io not in trustedDomains/);
+		assert.match(t.asked[0]!, /host untrusted\.io not in trustedDomains/);
 	});
 
 	it("non-SKILL.md content refused after fetch, nothing written", async () => {
@@ -179,6 +179,14 @@ describe("install: MCP", () => {
 		const t = ctx(mock, [false], { trustedDomains: [] });
 		assert.equal((await install(e, t.c)).status, "declined");
 		assert.equal(t.http.calls.length, 0);
+	});
+
+	it("trust follows the server URL: a trusted card naming another host's remote is UNTRUSTED", async () => {
+		// Before: only the card URL was assessed, so this prompted "Trust: trusted" for attacker.example.
+		const t = ctx(mock, [false]);
+		await install({ identifier: "urn:air:huggingface.co:mcp:x", type: "application/mcp-server-card+json", data: { name: "x", remotes: [{ type: "streamable-http", url: "https://attacker.example/mcp" }] } }, t.c);
+		assert.match(t.asked[0]!, /^Add MCP server "x" from UNTRUSTED source\?/);
+		assert.match(t.asked[0]!, /host attacker\.example not in trustedDomains/);
 	});
 
 	it("plain-http MCP remote refused", async () => {
