@@ -43,7 +43,7 @@ describe("contract: search against recorded live registry responses", () => {
 		assert.ok(r.results.length > 0);
 		assert.ok(r.results.every((e) => e.identifier.startsWith("urn:air:")));
 		const sent = JSON.parse(mock.requests.at(-1)!.body);
-		assert.deepEqual(sent, { query: { text: "paper" }, federation: "none", pageSize: 5 });
+		assert.deepEqual(sent, { query: { text: "paper" }, federation: "referrals", pageSize: 5 });
 		assert.equal(http.calls[0], "POST https://hf.test/search");
 	});
 

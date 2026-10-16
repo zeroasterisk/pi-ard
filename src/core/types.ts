@@ -35,7 +35,6 @@ export interface RegistryConfig {
 	url?: string;
 	/** Full search endpoint, used as-is (e.g. from a referral). */
 	searchUrl?: string;
-	federation?: "auto" | "referrals" | "none";
 }
 
 export interface ArdConfig {

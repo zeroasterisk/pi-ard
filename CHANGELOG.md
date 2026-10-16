@@ -4,6 +4,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Changed
+- Search sends `federation: "referrals"` (was `"none"`, with an undocumented per-registry override). Referrals are shown, never followed; `"auto"` would merge results from registries the user never chose. The `federation` config key is removed.
+
 ### Fixed
 - An identifier returned by two sources with different urls is refused instead of silently using the last one. Any registry can return any identifier; last-write-wins let a second search swap where a known identifier pointed.
 - The confirm prompt names declared attestations (e.g. `SOC2-Type2, agent-threat-scan`) instead of a count nobody displayed, and says both signature and attestations are NOT verified.

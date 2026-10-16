@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import type { ArdConfig, RegistryConfig } from "./types.ts";
 
 export const DEFAULT_CONFIG: ArdConfig = {
-	registries: [{ name: "huggingface", url: "https://huggingface-hf-discover.hf.space", federation: "none" }],
+	registries: [{ name: "huggingface", url: "https://huggingface-hf-discover.hf.space" }],
 	trustedDomains: ["huggingface.co"],
 };
 
@@ -21,7 +21,6 @@ export function validateConfig(c: unknown): string[] {
 				const reg = r as Partial<RegistryConfig>;
 				if (!reg || typeof reg.name !== "string" || !NAME.test(reg.name)) p.push(`registries[${i}].name must match ${NAME}`);
 				if (!reg?.url === !reg?.searchUrl) p.push(`registries[${i}] needs exactly one of url or searchUrl`);
-				if (reg?.federation && !["auto", "referrals", "none"].includes(reg.federation)) p.push(`registries[${i}].federation invalid`);
 			});
 	}
 	if (cfg.trustedDomains !== undefined && !(Array.isArray(cfg.trustedDomains) && cfg.trustedDomains.every((d) => typeof d === "string"))) {

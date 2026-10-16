@@ -14,7 +14,7 @@ Let a Pi user discover ARD resources across **any** ARD registry the owner confi
 | Id | Rule | Test |
 | :-- | :-- | :-- |
 | R1 | Registries come from user config. `url` gets `/search` appended; `searchUrl` is used verbatim. The default is HF Discover. | config.test, client.test "searchUrl" |
-| R2 | Search sends the ARD §5.3.2 body `{query:{text,filter?}, federation, pageSize≤100}`. An empty query is rejected client-side. | client.test |
+| R2 | Search sends the ARD §5.3.2 body `{query:{text,filter?}, federation:"referrals", pageSize≤100}`; referrals are shown, never followed. An empty query is rejected client-side. | client.test |
 | R3 | Every registry error surfaces its HTTP status and ARD code (Appendix B), with Retry-After when sent. There are no retries and no silent fallback to another registry. | client.test "errors" |
 | R4 | Catalog: `ard.json` first, then `ai-catalog.json`. The fallback reason is reported. Invalid entries are listed separately. | client.test catalog |
 | R5 | `ard_catalog` fetches only from trusted domains. | e2e via extension |

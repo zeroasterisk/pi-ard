@@ -5,7 +5,6 @@ import type { ArdEntry, RegistryConfig } from "./types.ts";
 export interface SearchParams {
 	text: string;
 	types?: string[];
-	federation?: "auto" | "referrals" | "none";
 	pageSize?: number;
 	pageToken?: string;
 }
@@ -42,7 +41,9 @@ export async function search(registry: RegistryConfig, p: SearchParams, http?: H
 	const pageSize = Math.min(Math.max(1, Math.trunc(p.pageSize ?? 10)), 100);
 	const body: Record<string, unknown> = {
 		query: { text: p.text, ...(p.types?.length ? { filter: { type: expandTypes(p.types) } } : {}) },
-		federation: p.federation ?? registry.federation ?? "none",
+		// Not "auto" (the spec default): results federated in by the registry would arrive without the
+		// user having chosen that registry. Referrals are shown, never followed (SPEC non-goal).
+		federation: "referrals",
 		pageSize,
 	};
 	if (p.pageToken) body.pageToken = p.pageToken;
