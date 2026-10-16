@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import { loadSkills } from "@earendil-works/pi-coding-agent";
 import { mockServer, routedHttp, type MockServer } from "./helpers.ts";
 import { piHarness } from "./pi-harness.ts";
 
@@ -71,6 +72,10 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 			assert.equal(h.confirms.length, 1);
 			assert.match(h.confirms[0]!.body, /Signature: unsigned/);
 			assert.equal(readFileSync(join(h.agentDir, "skills", "pdf-tools", "SKILL.md"), "utf8"), SKILL);
+			// "installed" must mean Pi actually loads it: run Pi's own skill loader against agentDir.
+			const loaded = loadSkills({ cwd: h.agentDir, agentDir: h.agentDir, skillPaths: [], includeDefaults: true });
+			assert.deepEqual(loaded.skills.map((s) => [s.name, s.description]), [["pdf-tools", "Work with PDFs"]]);
+			assert.deepEqual(loaded.diagnostics, []);
 		} finally {
 			h.dispose();
 		}
