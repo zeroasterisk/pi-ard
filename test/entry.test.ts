@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import { checkEntry, identityDomain, isTrustedDomain, kindOf, publisherOf } from "../src/core/entry.ts";
-import { skillName, skillSourceUrl } from "../src/core/install.ts";
+import { parseSkill, skillSourceUrl } from "../src/core/install.ts";
 import { fixtureJson } from "./helpers.ts";
 
 describe("entry: ARD §4 / Appendix C", () => {
@@ -106,11 +106,13 @@ describe("skill source resolution: never guesses", () => {
 	it("GitHub tree/ directory without raw_url: refuses", () => {
 		assert.equal(skillSourceUrl({ identifier: "urn:air:github.com:a:b", type: "application/ai-skill", url: "https://github.com/a/b/tree/main/skills/x" }), undefined);
 	});
-	it("skill name: frontmatter first, must be a valid Agent Skills name", () => {
+	it("parseSkill: matches Pi's loader (name fallback, description required, YAML folding)", () => {
 		const e = { identifier: "urn:air:x.com:skill:Fallback" };
-		assert.equal(skillName(e, "---\nname: pdf-tools\n---\n"), "pdf-tools");
-		assert.equal(skillName(e, "---\ndescription: x\n---\n"), "fallback");
-		assert.equal(skillName(e, "---\nname: ../../etc\n---\n"), undefined, "path traversal rejected");
-		assert.equal(skillName(e, "---\nname: a--b\n---\n"), undefined);
+		assert.deepEqual(parseSkill(e, "---\nname: pdf-tools\ndescription: d\n---\n"), { name: "pdf-tools" });
+		assert.deepEqual(parseSkill(e, "---\ndescription: >\n  folded\n---\n"), { name: "fallback" });
+		// Pi skips a SKILL.md without description; installing it would "succeed" and never load.
+		assert.match((parseSkill(e, "---\nname: pdf-tools\n---\n") as { error: string }).error, /no description/);
+		assert.match((parseSkill(e, "---\nname: ../../etc\ndescription: d\n---\n") as { error: string }).error, /invalid Agent Skills name/);
+		assert.match((parseSkill(e, "---\nname: a--b\ndescription: d\n---\n") as { error: string }).error, /invalid/);
 	});
 });

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { lockPath, readLock, writeJsonAtomic, type LockEntry } from "./config.ts";
 import { checkEntry, hostOf, isTrustedDomain, signatureLabel, type EntryCheck } from "./entry.ts";
 import { type HttpOptions, getJson, request } from "./http.ts";
@@ -68,14 +69,23 @@ export function skillSourceUrl(entry: ArdEntry): string | undefined {
 	return undefined;
 }
 
-/** Agent Skills name rules (lowercase, digits, single hyphens, <=64). */
-export function skillName(entry: ArdEntry, body: string): string | undefined {
-	const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)?.[1] ?? "";
-	const declared = /^name:\s*["']?([^"'\r\n]+?)["']?\s*$/m.exec(fm)?.[1];
-	const tail = entry.identifier.split(":").pop();
-	const candidate = (declared ?? tail ?? "").trim().toLowerCase();
-	if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(candidate) || candidate.length > 64) return undefined;
-	return candidate;
+/**
+ * Validates a fetched SKILL.md the way Pi's loader does (same YAML parser): Pi silently skips a
+ * skill without a description, so installing one would report success for a skill that never loads.
+ * Name: frontmatter `name`, else the identifier tail; must be a valid Agent Skills name.
+ */
+export function parseSkill(entry: ArdEntry, body: string): { name: string } | { error: string } {
+	if (!/^---\r?\n/.test(body)) return { error: "no YAML frontmatter; not a SKILL.md" };
+	let fm: Record<string, unknown>;
+	try {
+		fm = parseFrontmatter(body).frontmatter;
+	} catch (e) {
+		return { error: `invalid frontmatter: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}` };
+	}
+	if (typeof fm.description !== "string" || !fm.description.trim()) return { error: "frontmatter has no description (Pi would not load it)" };
+	const name = (typeof fm.name === "string" ? fm.name : (entry.identifier.split(":").pop() ?? "")).trim().toLowerCase();
+	if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || name.length > 64) return { error: `invalid Agent Skills name "${name}" (lowercase a-z, 0-9, single hyphens)` };
+	return { name };
 }
 
 function confirmBody(lines: Array<[string, string | undefined]>, warning: string): string {
@@ -117,9 +127,9 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 
 	const res = await request(src, { method: "GET", headers: { accept: "text/markdown, text/plain" } }, { maxBytes: 256_000, ...ctx.http });
 	const body = res.body;
-	if (!/^---\r?\n[\s\S]*?\r?\n---/.test(body)) return { status: "refused", reason: `Fetched file has no YAML frontmatter; not a SKILL.md (${src})` };
-	const name = skillName(entry, body);
-	if (!name) return { status: "refused", reason: "Could not derive a valid Agent Skills name (lowercase a-z, 0-9, hyphens)." };
+	const parsed = parseSkill(entry, body);
+	if ("error" in parsed) return { status: "refused", reason: `Fetched ${src}: ${parsed.error}. Nothing written.` };
+	const { name } = parsed;
 	const dir = join(skillsDir, name);
 	if (existsSync(dir)) return { status: "refused", reason: `Skill "${name}" already exists at ${dir}. Not overwriting.` };
 

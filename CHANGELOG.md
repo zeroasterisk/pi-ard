@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 ## [Unreleased]
 
 ### Fixed
+- Skills without a frontmatter `description` are refused. Pi silently skips them, so they used to install "successfully" and never load. Frontmatter is now parsed with Pi's own `parseFrontmatter` (handles YAML folding) instead of a regex.
 - Type filters now include the registry aliases of the same kind. Live HF returned 0 skills for `application/agent-skills+md` (it indexes `application/ai-skill`); GitHub likewise for MCP.
 
 ### Removed
