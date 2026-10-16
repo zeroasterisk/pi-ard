@@ -1,0 +1,2 @@
+{"detail":[{"type":"less_than_equal","loc":["body","pageSize"],"msg":"Input should be less than or equal to 100","input":500,"ctx":{"le":100}}]}
+422

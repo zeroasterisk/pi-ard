@@ -1,0 +1,12 @@
+pi-ard
+Copyright 2026 Alan Blount and pi-ard contributors
+
+This product includes test fixtures from ards-project/ard-spec
+(https://github.com/ards-project/ard-spec, commit 49eb4df), licensed under Apache-2.0:
+  test/fixtures/spec/basic-ard.json
+  test/fixtures/spec/scan-attestation-ard.json
+  test/fixtures/spec/ard-entry.schema.json
+
+test/fixtures/live/ contains responses recorded on 2026-10-16 from public endpoints
+(huggingface-hf-discover.hf.space, huggingface.co, agentfinder.github.com, api.mcp.github.com)
+for contract testing.

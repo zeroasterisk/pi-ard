@@ -1,0 +1,1 @@
+{"$schema":"https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json","name":"huggingface.co/mcp","version":"0.4.30","description":"Official MCP server for the Hugging Face Hub.","title":"Hugging Face","websiteUrl":"https://huggingface.co/mcp","remotes":[{"type":"streamable-http","url":"https://huggingface.co/mcp"}]}

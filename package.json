@@ -1,0 +1,62 @@
+{
+	"name": "pi-ard",
+	"version": "0.1.0",
+	"description": "Agentic Resource Discovery (ARD) for Pi: search any ARD registry, browse catalogs, install skills and add MCP servers after you confirm.",
+	"type": "module",
+	"license": "Apache-2.0",
+	"author": "Alan Blount <alan@zeroasterisk.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/zeroasterisk/pi-ard.git"
+	},
+	"homepage": "https://github.com/zeroasterisk/pi-ard#readme",
+	"bugs": "https://github.com/zeroasterisk/pi-ard/issues",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"ard",
+		"agentic-resource-discovery",
+		"ai-catalog",
+		"mcp",
+		"agent-skills"
+	],
+	"engines": {
+		"node": ">=22.18"
+	},
+	"files": [
+		"src",
+		"README.md",
+		"SECURITY.md",
+		"CHANGELOG.md",
+		"LICENSE",
+		"NOTICE"
+	],
+	"exports": {
+		".": "./src/extension.ts",
+		"./core": "./src/core/index.ts"
+	},
+	"pi": {
+		"extensions": [
+			"./src/extension.ts"
+		]
+	},
+	"scripts": {
+		"check": "tsc -p . && npm test",
+		"typecheck": "tsc -p .",
+		"test": "node --test --experimental-strip-types test/*.test.ts",
+		"test:live": "PI_ARD_LIVE=1 node --test --experimental-strip-types test/live.test.ts",
+		"example": "node --experimental-strip-types"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-coding-agent": "*",
+		"typebox": "*"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-ai": "^1.3.0",
+		"@earendil-works/pi-coding-agent": "^1.3.0",
+		"@types/node": "^22.0.0",
+		"typebox": "^1.0.0",
+		"typescript": "^5.6.0"
+	}
+}

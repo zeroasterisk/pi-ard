@@ -1,0 +1,21 @@
+{
+	"specVersion": "0.91",
+	"entries": [
+		{
+			"identifier": "urn:air:huggingface.co:mcp:hub",
+			"displayName": "Hugging Face",
+			"type": "application/mcp-server-card+json",
+			"url": "https://huggingface.co/mcp/server-card",
+			"description": "Official MCP server for the Hugging Face Hub: models, datasets, papers, spaces.",
+			"tags": ["huggingface", "models", "datasets", "papers"]
+		},
+		{
+			"identifier": "urn:air:github.com:huggingface:skills:huggingface-papers",
+			"displayName": "huggingface-papers",
+			"type": "application/agent-skills+md",
+			"url": "https://raw.githubusercontent.com/huggingface/skills/main/skills/huggingface-papers/SKILL.md",
+			"description": "Look up and read Hugging Face paper pages in markdown.",
+			"tags": ["papers", "research", "arxiv"]
+		}
+	]
+}

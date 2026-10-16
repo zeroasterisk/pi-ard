@@ -1,0 +1,2 @@
+{"detail":[{"type":"missing","loc":["body","query","text"],"msg":"Field required","input":{}}]}
+422
