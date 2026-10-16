@@ -32,8 +32,7 @@
 		"NOTICE"
 	],
 	"exports": {
-		".": "./src/extension.ts",
-		"./core": "./src/core/index.ts"
+		".": "./src/extension.ts"
 	},
 	"pi": {
 		"extensions": [

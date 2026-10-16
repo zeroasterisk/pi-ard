@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import { loadSkills } from "@earendil-works/pi-coding-agent";
 import { mockServer, routedHttp, type MockServer } from "./helpers.ts";
 import { piHarness } from "./pi-harness.ts";
 
@@ -22,7 +23,10 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 							url: "https://example.com/skills/pdf-tools/SKILL.md",
 							score: 0.9,
 						},
+						// Trusted publisher, artifact elsewhere: the list must agree with the install prompt.
+						{ identifier: "urn:air:example.com:skill:mirror", type: "application/agent-skills+md", url: "https://mirror.example.net/SKILL.md" },
 					],
+					referrals: [{ identifier: "urn:air:finder.external.org:registry:main", url: "https://finder.external.org/api/" }],
 				},
 			}),
 			"GET /example.com/skills/pdf-tools/SKILL.md": () => ({ text: SKILL }),
@@ -65,14 +69,45 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 			await h.session.prompt("find and install a pdf skill");
 			const [searchOut] = h.toolResults("ard_search");
 			assert.match(searchOut!, /PDF tools <urn:air:example\.com:skill:pdf-tools> \[skill, trusted, unsigned\]/);
+			assert.match(searchOut!, /<urn:air:example\.com:skill:mirror> \[skill, untrusted,/);
+			// §5.3: a referral url is a complete search endpoint; config must use searchUrl, or /search gets appended twice.
+			assert.match(searchOut!, /\{"name":"…","searchUrl":"https:\/\/finder\.external\.org\/api\/"\}/);
 			assert.match(searchOut!, /relevance only, not trust/);
 			const [installOut] = h.toolResults("ard_install");
 			assert.match(installOut!, /^installed: skill "pdf-tools"/);
 			assert.equal(h.confirms.length, 1);
 			assert.match(h.confirms[0]!.body, /Signature: unsigned/);
 			assert.equal(readFileSync(join(h.agentDir, "skills", "pdf-tools", "SKILL.md"), "utf8"), SKILL);
+			// "installed" must mean Pi actually loads it: run Pi's own skill loader against agentDir.
+			const loaded = loadSkills({ cwd: h.agentDir, agentDir: h.agentDir, skillPaths: [], includeDefaults: true });
+			assert.deepEqual(loaded.skills.map((s) => [s.name, s.description]), [["pdf-tools", "Work with PDFs"]]);
+			assert.deepEqual(loaded.diagnostics, []);
 		} finally {
 			h.dispose();
+		}
+	});
+
+	it("an identifier two sources point to different urls is not installable (no silent last-write-wins)", async () => {
+		const m = await mockServer({
+			"POST /reg.example.com/search": () => ({ json: { results: [{ identifier: "urn:air:example.com:skill:pdf-tools", type: "application/agent-skills+md", url: "https://example.com/skills/pdf-tools/SKILL.md" }] } }),
+			"POST /other.example.org/search": () => ({ json: { results: [{ identifier: "urn:air:example.com:skill:pdf-tools", type: "application/agent-skills+md", url: "https://example.com/evil/SKILL.md" }] } }),
+		});
+		const h = await piHarness({ answers: [], ard: { http: routedHttp(m) } });
+		mkdirSync(join(h.agentDir, "pi-ard"), { recursive: true });
+		writeFileSync(join(h.agentDir, "pi-ard", "config.json"), JSON.stringify({ registries: [{ name: "a", url: "https://reg.example.com" }, { name: "b", url: "https://other.example.org" }], trustedDomains: ["example.com"] }));
+		try {
+			h.setResponses([
+				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf", registry: "b" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage(fauxToolCall("ard_install", { identifier: "urn:air:example.com:skill:pdf-tools" }), { stopReason: "toolUse" }),
+				fauxAssistantMessage("ok"),
+			]);
+			await h.session.prompt("install pdf-tools");
+			assert.match(h.toolResults("ard_install")[0]!, /different urls by different sources/);
+			assert.equal(h.confirms.length, 0);
+		} finally {
+			h.dispose();
+			await m.close();
 		}
 	});
 
@@ -92,16 +127,20 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 		}
 	});
 
-	it("without a UI (print mode) install refuses instead of auto-approving", async () => {
+	it("without a UI install refuses; ard_catalog never fetches an untrusted domain (SPEC R5, R8)", async () => {
 		const h = await piHarness({ hasUI: false, ard: { http: routedHttp(mock) } });
 		cfg(h.agentDir);
 		try {
 			h.setResponses([
+				fauxAssistantMessage(fauxToolCall("ard_catalog", { domain: "untrusted.example.org" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage(fauxToolCall("ard_search", { text: "pdf" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage(fauxToolCall("ard_install", { identifier: "urn:air:example.com:skill:pdf-tools" }), { stopReason: "toolUse" }),
 				fauxAssistantMessage("ok"),
 			]);
+			const before = mock.requests.length;
 			await h.session.prompt("install");
+			assert.match(h.toolResults("ard_catalog")[0]!, /untrusted\.example\.org is not in trustedDomains/);
+			assert.ok(!mock.requests.slice(before).some((r) => r.path.startsWith("/untrusted.example.org")), "no request to the untrusted domain");
 			assert.match(h.toolResults("ard_install")[0]!, /needs an interactive Pi UI/);
 		} finally {
 			h.dispose();

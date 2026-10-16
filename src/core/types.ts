@@ -6,22 +6,15 @@ export interface ArdEntry {
 	url?: string;
 	data?: unknown;
 	description?: string;
-	tags?: string[];
-	capabilities?: string[];
-	version?: string;
-	updatedAt?: string;
 	metadata?: Record<string, unknown>;
 	trustManifest?: TrustManifest;
 	/** Search results only. Relevance, never trust. */
 	score?: number;
-	/** Search results only. Registry-defined origin label or URL. */
-	source?: string;
 	[key: string]: unknown;
 }
 
 export interface TrustManifest {
 	identity?: string;
-	identityType?: string;
 	trustSchema?: { identifier?: string; version?: string; governanceUri?: string; verificationMethods?: string[] };
 	attestations?: Array<{ type?: string; uri?: string; mediaType?: string; digest?: string }>;
 	[key: string]: unknown;
@@ -35,7 +28,6 @@ export interface RegistryConfig {
 	url?: string;
 	/** Full search endpoint, used as-is (e.g. from a referral). */
 	searchUrl?: string;
-	federation?: "auto" | "referrals" | "none";
 }
 
 export interface ArdConfig {

@@ -1,11 +1,10 @@
-import { checkEntry } from "./entry.ts";
-import { type HttpOptions, ArdHttpError, getJson, postJson } from "./http.ts";
+import { checkEntry, expandTypes } from "./entry.ts";
+import { type HttpOptions, ArdHttpError, getJson, isLoopback, postJson } from "./http.ts";
 import type { ArdEntry, RegistryConfig } from "./types.ts";
 
 export interface SearchParams {
 	text: string;
 	types?: string[];
-	federation?: "auto" | "referrals" | "none";
 	pageSize?: number;
 	pageToken?: string;
 }
@@ -41,8 +40,10 @@ export async function search(registry: RegistryConfig, p: SearchParams, http?: H
 	const endpoint = searchEndpoint(registry);
 	const pageSize = Math.min(Math.max(1, Math.trunc(p.pageSize ?? 10)), 100);
 	const body: Record<string, unknown> = {
-		query: { text: p.text, ...(p.types?.length ? { filter: { type: p.types } } : {}) },
-		federation: p.federation ?? registry.federation ?? "none",
+		query: { text: p.text, ...(p.types?.length ? { filter: { type: expandTypes(p.types) } } : {}) },
+		// Not "auto" (the spec default): results federated in by the registry would arrive without the
+		// user having chosen that registry. Referrals are shown, never followed (SPEC non-goal).
+		federation: "referrals",
 		pageSize,
 	};
 	if (p.pageToken) body.pageToken = p.pageToken;
@@ -96,10 +97,16 @@ function parseManifest(json: unknown, url: string): Omit<CatalogResult, "path" |
  * ARD §5.1 consumer resolution: fetch https://{domain}/.well-known/ard.json (MUST); if that is not
  * a JSON manifest with entries[], try the predecessor /.well-known/ai-catalog.json (MAY).
  */
-export async function fetchCatalog(domain: string, http?: HttpOptions): Promise<CatalogResult> {
+/** "https://Example.com/x" -> "example.com"; "localhost:8787" kept with port. Throws unless a plain host[:port]. */
+export function catalogHost(domain: string): string {
 	const host = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 	if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) throw new ArdHttpError(`Not a domain: ${domain}`, domain);
-	const base = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? `http://${host}` : `https://${host}`;
+	return host;
+}
+
+export async function fetchCatalog(domain: string, http?: HttpOptions): Promise<CatalogResult> {
+	const host = catalogHost(domain);
+	const base = `${isLoopback(host.replace(/:\d+$/, "")) ? "http" : "https"}://${host}`;
 	let reason: string;
 	try {
 		const r = await getJson(`${base}/.well-known/ard.json`, http);

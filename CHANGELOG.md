@@ -4,6 +4,26 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Changed
+- Search sends `federation: "referrals"` (was `"none"`, with an undocumented per-registry override). Referrals are shown, never followed; `"auto"` would merge results from registries the user never chose. The `federation` config key is removed.
+
+### Fixed
+- HF Space skills (`urn:air:huggingface.co:skill:space:…`, served by Discover at `…/SKILL.md` with type `application/ai-skill`) were refused as "cannot resolve"; they now install. Source resolution is simpler: any URL ending in `SKILL.md` except github.com pages.
+- Referrals are shown as a ready `{"searchUrl": …}` config line. §5.3: a referral url is already the full search endpoint; the old output invited adding it as `url`, which appends `/search` again.
+- Search/catalog listings use the same trust rule as the install prompt (publisher **and** artifact host). Real case: with `github.com` trusted, HF skill results were listed "trusted" while the install dialog said UNTRUSTED (`raw.githubusercontent.com`).
+- An identifier returned by two sources with different urls is refused instead of silently using the last one. Any registry can return any identifier; last-write-wins let a second search swap where a known identifier pointed.
+- The confirm prompt names declared attestations (e.g. `SOC2-Type2, agent-threat-scan`) instead of a count nobody displayed, and says both signature and attestations are NOT verified.
+- A corrupt `lock.json` no longer leaves an orphan skill: the lock is read before anything is written, and the error names the file.
+- stdio MCP command comes only from `registryType` (npm→npx, pypi→uvx, oci→docker). The card's free-form `runtimeHint` used to choose the program (`"bash"` worked). Package ids starting with `-` or containing spaces, and non-plain versions, are rejected.
+- MCP trust is assessed against the server URL the tools will call, not just the card URL. A card from a trusted host (or inline `data`) naming a remote on another host was shown as "trusted".
+- MCP server names come from the ARD identifier, not the card. HF's official card is named `huggingface.co/mcp`, which registered as `mcp` (tools `mcp__mcp__*`); it is now `huggingface-hub`.
+- Skill installs report bundled files the SKILL.md cites but that were not installed (e.g. HF `huggingface-paper-publisher` → `scripts/paper_manager.py`). Only SKILL.md is fetched; the result used to read as a complete install.
+- Skills without a frontmatter `description` are refused. Pi silently skips them, so they used to install "successfully" and never load. Frontmatter is now parsed with Pi's own `parseFrontmatter` (handles YAML folding) instead of a regex.
+- Type filters now include the registry aliases of the same kind. Live HF returned 0 skills for `application/agent-skills+md` (it indexes `application/ai-skill`); GitHub likewise for MCP.
+
+### Removed
+- `pi-ard/core` export. Node refuses to strip types under `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), so it never worked for npm consumers. The code still lives in `src/core` with no Pi imports.
+
 ## [0.1.0] - 2026-10-16
 ### Added
 - `ard_search`: ARD v0.91 `/search` against any configured registry (`url` or `searchUrl`).

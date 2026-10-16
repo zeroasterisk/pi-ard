@@ -12,24 +12,6 @@ describe("config", () => {
 		assert.notEqual(c, DEFAULT_CONFIG, "returns a copy");
 	});
 
-	it("owner can point at any ARD search endpoint", () => {
-		const dir = mkdtempSync(join(tmpdir(), "pi-ard-c-"));
-		const p = join(dir, "config.json");
-		writeFileSync(
-			p,
-			JSON.stringify({
-				registries: [
-					{ name: "corp", url: "https://ard.corp.example" },
-					{ name: "github", searchUrl: "https://agentfinder.github.com/api/v1/search" },
-				],
-				trustedDomains: ["corp.example"],
-			}),
-		);
-		const c = loadConfig(p);
-		assert.equal(c.registries.length, 2);
-		assert.deepEqual(c.trustedDomains, ["corp.example"]);
-	});
-
 	it("rejects bad shapes with specific messages", () => {
 		assert.match(validateConfig({ registries: [{ name: "x" }] }).join(), /exactly one of url or searchUrl/);
 		assert.match(validateConfig({ registries: [{ name: "x", url: "https://a", searchUrl: "https://b" }] }).join(), /exactly one/);

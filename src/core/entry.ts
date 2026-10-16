@@ -20,6 +20,16 @@ export function kindOf(type: string | undefined): EntryKind {
 	return (type && KIND_BY_TYPE[type]) || "unsupported";
 }
 
+/**
+ * Expand a type filter with every media type of the same kind. Live registries index the aliases
+ * (2026-10-16: HF filter `agent-skills+md` -> 0 results, `ai-skill` -> 6; GitHub
+ * `mcp-server-card+json` -> 0, `mcp-server+json` -> 2), so a spec-correct filter alone misses them.
+ */
+export function expandTypes(types: string[]): string[] {
+	const kinds = new Set(types.map(kindOf));
+	return [...new Set([...types, ...Object.keys(KIND_BY_TYPE).filter((t) => kinds.has(KIND_BY_TYPE[t]!))])];
+}
+
 // ARD Appendix C / ard-entry.schema.json
 const URN = /^urn:air:([a-zA-Z0-9.-]+)(:[a-zA-Z0-9._-]+)+$/;
 
@@ -55,7 +65,8 @@ export interface EntryCheck {
 	/** Labels shown to the user. Never mean "verified". */
 	signature: Signature;
 	trustSchema?: string;
-	attestations: number;
+	/** Declared attestation types, e.g. "SOC2-Type2", "agent-threat-scan". Not fetched, not verified. */
+	attestations: string[];
 }
 
 /**
@@ -95,7 +106,7 @@ export function checkEntry(entry: ArdEntry, complete: boolean): EntryCheck {
 		problems,
 		signature,
 		trustSchema: tm?.trustSchema?.identifier,
-		attestations: Array.isArray(tm?.attestations) ? tm!.attestations!.length : 0,
+		attestations: Array.isArray(tm?.attestations) ? tm!.attestations!.map((a) => String(a?.type ?? "untyped").slice(0, 40)) : [],
 	};
 }
 
@@ -118,5 +129,6 @@ export function isTrustedDomain(host: string | undefined, config: Pick<ArdConfig
 
 export function signatureLabel(c: EntryCheck): string {
 	if (c.signature === "unsigned") return "unsigned";
-	return `trust manifest declared${c.trustSchema ? ` (${c.trustSchema})` : ""}, signature NOT verified`;
+	const att = c.attestations.length ? `; attestations declared: ${c.attestations.join(", ")}` : "";
+	return `trust manifest declared${c.trustSchema ? ` (${c.trustSchema})` : ""}${att}; signature and attestations NOT verified`;
 }

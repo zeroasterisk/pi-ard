@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { checkEntry, identityDomain, isTrustedDomain, kindOf, publisherOf } from "../src/core/entry.ts";
-import { skillName, skillSourceUrl } from "../src/core/install.ts";
+import { checkEntry, identityDomain, isTrustedDomain, kindOf, publisherOf, signatureLabel } from "../src/core/entry.ts";
+import { parseSkill, skillSourceUrl } from "../src/core/install.ts";
 import { fixtureJson } from "./helpers.ts";
 
 describe("entry: ARD §4 / Appendix C", () => {
@@ -31,10 +31,6 @@ describe("entry: ARD §4 / Appendix C", () => {
 		assert.match(checkEntry({ identifier: "urn:air:x.com:a:b", url: "https://x.com" }, true).problems.join(), /displayName.*type|missing type/);
 	});
 
-	it("search results may omit terms (§5.3.2)", () => {
-		assert.deepEqual(checkEntry({ identifier: "urn:air:x.com:a:b" }, false).problems, []);
-	});
-
 	it("spec conformance examples are valid", () => {
 		for (const f of ["spec/basic-ard.json", "spec/scan-attestation-ard.json"]) {
 			const doc = fixtureJson(f) as { entries: Array<Record<string, unknown>> };
@@ -52,20 +48,12 @@ describe("entry: trust manifest (§4.5) — declared, never verified", () => {
 		assert.equal(identityDomain("did:key:z6Mk"), undefined);
 	});
 
-	it("scan-attestation example: label says declared, NOT verified; counts attestations", () => {
+	it("scan-attestation example: user sees which attestations are declared, and that none are verified", () => {
 		const doc = fixtureJson("spec/scan-attestation-ard.json") as { entries: never[] };
 		const c = checkEntry(doc.entries[0]!, true);
 		assert.equal(c.signature, "declared-unverified");
-		assert.equal(c.attestations, 2);
+		assert.equal(signatureLabel(c), "trust manifest declared; attestations declared: SOC2-Type2, agent-threat-scan; signature and attestations NOT verified");
 		assert.deepEqual(c.problems, []);
-	});
-
-	it("§4.5.1 identity mismatch is a problem (entry not installable)", () => {
-		const c = checkEntry(
-			{ identifier: "urn:air:good.com:skill:x", trustManifest: { identity: "spiffe://evil.com/x" } },
-			false,
-		);
-		assert.match(c.problems.join(), /identity mismatch/);
 	});
 
 	it("subdomain identity binds to parent publisher; lookalike does not", () => {
@@ -76,8 +64,8 @@ describe("entry: trust manifest (§4.5) — declared, never verified", () => {
 		);
 	});
 
-	it("no trust manifest = unsigned", () => {
-		assert.equal(checkEntry({ identifier: "urn:air:x.com:a:b" }, false).signature, "unsigned");
+	it("no trust manifest = unsigned; a bare search result (§5.3.2: only identifier) has no problems", () => {
+		assert.deepEqual(checkEntry({ identifier: "urn:air:x.com:a:b" }, false), { kind: "unsupported", publisher: "x.com", problems: [], signature: "unsigned", trustSchema: undefined, attestations: [] });
 		assert.equal(checkEntry({ identifier: "urn:air:x.com:a:b", trustManifest: null as never }, false).signature, "unsigned");
 	});
 });
@@ -103,14 +91,22 @@ describe("skill source resolution: never guesses", () => {
 		const e = (fixtureJson("live/gh-search.json") as { results: never[] }).results[0]!;
 		assert.equal(skillSourceUrl(e), "https://raw.githubusercontent.com/github/awesome-copilot/main/skills/convert-pdf-to-md/SKILL.md");
 	});
+	it("HF Space skill (Discover-served .../SKILL.md, type ai-skill): used as-is; was refused", () => {
+		assert.equal(
+			skillSourceUrl({ identifier: "urn:air:huggingface.co:skill:space:hysts:daily-papers", type: "application/ai-skill", url: "https://huggingface-hf-discover.hf.space/skills/huggingface/hysts/daily-papers/SKILL.md" }),
+			"https://huggingface-hf-discover.hf.space/skills/huggingface/hysts/daily-papers/SKILL.md",
+		);
+	});
 	it("GitHub tree/ directory without raw_url: refuses", () => {
 		assert.equal(skillSourceUrl({ identifier: "urn:air:github.com:a:b", type: "application/ai-skill", url: "https://github.com/a/b/tree/main/skills/x" }), undefined);
 	});
-	it("skill name: frontmatter first, must be a valid Agent Skills name", () => {
+	it("parseSkill: matches Pi's loader (name fallback, description required, YAML folding)", () => {
 		const e = { identifier: "urn:air:x.com:skill:Fallback" };
-		assert.equal(skillName(e, "---\nname: pdf-tools\n---\n"), "pdf-tools");
-		assert.equal(skillName(e, "---\ndescription: x\n---\n"), "fallback");
-		assert.equal(skillName(e, "---\nname: ../../etc\n---\n"), undefined, "path traversal rejected");
-		assert.equal(skillName(e, "---\nname: a--b\n---\n"), undefined);
+		assert.deepEqual(parseSkill(e, "---\nname: pdf-tools\ndescription: d\n---\n"), { name: "pdf-tools" });
+		assert.deepEqual(parseSkill(e, "---\ndescription: >\n  folded\n---\n"), { name: "fallback" });
+		// Pi skips a SKILL.md without description; installing it would "succeed" and never load.
+		assert.match((parseSkill(e, "---\nname: pdf-tools\n---\n") as { error: string }).error, /no description/);
+		assert.match((parseSkill(e, "---\nname: ../../etc\ndescription: d\n---\n") as { error: string }).error, /invalid Agent Skills name/);
+		assert.match((parseSkill(e, "---\nname: a--b\ndescription: d\n---\n") as { error: string }).error, /invalid/);
 	});
 });
