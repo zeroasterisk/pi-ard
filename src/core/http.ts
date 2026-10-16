@@ -33,8 +33,10 @@ export class ArdHttpError extends Error {
 }
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+/** Loopback hosts may use plain http, so owners can test local registries. */
+export const isLoopback = (hostname: string) => LOOPBACK.has(hostname);
 
-/** HTTPS only. Plain HTTP is allowed for loopback hosts so owners can test local registries. */
+/** HTTPS only (loopback http allowed). No credentials in URLs. */
 export function assertSafeUrl(raw: string): URL {
 	let url: URL;
 	try {
@@ -44,7 +46,7 @@ export function assertSafeUrl(raw: string): URL {
 	}
 	if (url.username || url.password) throw new ArdHttpError("URLs with credentials are not allowed", raw);
 	if (url.protocol === "https:") return url;
-	if (url.protocol === "http:" && LOOPBACK.has(url.hostname)) return url;
+	if (url.protocol === "http:" && isLoopback(url.hostname)) return url;
 	throw new ArdHttpError(`Only https URLs are allowed (got ${url.protocol}//${url.host})`, raw);
 }
 

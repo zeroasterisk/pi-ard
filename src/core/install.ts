@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { lockPath, readLock, writeJsonAtomic, type LockEntry } from "./config.ts";
 import { checkEntry, hostOf, isTrustedDomain, signatureLabel, type EntryCheck } from "./entry.ts";
-import { type HttpOptions, getJson, request } from "./http.ts";
+import { type HttpOptions, assertSafeUrl, getJson, request } from "./http.ts";
 import type { ArdConfig, ArdEntry } from "./types.ts";
 
 /**
@@ -251,7 +251,7 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 
 	const plan = planMcp(card, entry, cardUrl);
 	if (!plan) return { status: "refused", reason: `No usable remote or stdio package in server card ${cardUrl}` };
-	if (plan.transport === "http") assertHttps(plan.url!);
+	if (plan.transport === "http") assertSafeUrl(plan.url!);
 
 	const what = plan.transport === "http" ? plan.url! : `${plan.command} ${plan.args!.join(" ")}`;
 	// Trust is about where tool calls go, not only where the card came from: re-assess against the
@@ -295,10 +295,6 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 	return { status: "mcp-ready", name: plan.name, transport: "http", url: plan.url!, persistCommand: `pi mcp add ${plan.name} --url ${plan.url}` };
 }
 
-function assertHttps(url: string): void {
-	const u = new URL(url);
-	if (u.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)) throw new Error(`Refusing non-https MCP server URL ${url}`);
-}
 
 // ---------- dispatcher ----------
 

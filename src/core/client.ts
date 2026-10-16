@@ -1,5 +1,5 @@
 import { checkEntry, expandTypes } from "./entry.ts";
-import { type HttpOptions, ArdHttpError, getJson, postJson } from "./http.ts";
+import { type HttpOptions, ArdHttpError, getJson, isLoopback, postJson } from "./http.ts";
 import type { ArdEntry, RegistryConfig } from "./types.ts";
 
 export interface SearchParams {
@@ -99,7 +99,7 @@ function parseManifest(json: unknown, url: string): Omit<CatalogResult, "path" |
 export async function fetchCatalog(domain: string, http?: HttpOptions): Promise<CatalogResult> {
 	const host = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 	if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) throw new ArdHttpError(`Not a domain: ${domain}`, domain);
-	const base = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? `http://${host}` : `https://${host}`;
+	const base = `${isLoopback(host.replace(/:\d+$/, "")) ? "http" : "https"}://${host}`;
 	let reason: string;
 	try {
 		const r = await getJson(`${base}/.well-known/ard.json`, http);

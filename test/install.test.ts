@@ -199,7 +199,7 @@ describe("install: MCP", () => {
 
 	it("plain-http MCP remote refused", async () => {
 		const t = ctx(mock, []);
-		await assert.rejects(install({ identifier: "urn:air:example.com:mcp:x", type: "application/mcp-server-card+json", url: "https://example.com/plain-http-card" }, t.c), /non-https/);
+		await assert.rejects(install({ identifier: "urn:air:example.com:mcp:x", type: "application/mcp-server-card+json", url: "https://example.com/plain-http-card" }, t.c), /Only https/);
 		assert.equal(t.registered.length, 0);
 	});
 
