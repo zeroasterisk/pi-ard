@@ -76,20 +76,9 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 
 **A2A agents, registries and nested catalogs** are shown in results but not installed. The tool explains what to do instead.
 
-## Without Pi
-
-`pi-ard/core` is the ARD client with no Pi dependency:
-
-```ts
-import { search, fetchCatalog, checkEntry } from "pi-ard/core";
-const r = await search({ name: "hf", url: "https://huggingface-hf-discover.hf.space" }, { text: "pdf" });
-```
-
-See [`examples/search-public-registries.ts`](examples/search-public-registries.ts).
-
 ## Why not an ARD SDK?
 
-As of 2026-10 there is no official ARD SDK. The `ards-project` org publishes only the spec and connectors. The npm packages `ai-catalog` and `ai-catalog-sdk` implement the predecessor AI Catalog format, not the v0.91 `/search` API. The client here is small and isolated in `src/core`, so it can be swapped for an official SDK when one ships. See [docs/DESIGN.md](docs/DESIGN.md).
+As of 2026-10 there is no official ARD SDK. The `ards-project` org publishes only the spec and connectors. The npm packages `ai-catalog` and `ai-catalog-sdk` implement the predecessor AI Catalog format, not the v0.91 `/search` API. The client here is small and isolated in `src/core` (no Pi imports), so it can be swapped for an official SDK when one ships. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Development
 

@@ -4,6 +4,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Removed
+- `pi-ard/core` export. Node refuses to strip types under `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), so it never worked for npm consumers. The code still lives in `src/core` with no Pi imports.
+
 ## [0.1.0] - 2026-10-16
 ### Added
 - `ard_search`: ARD v0.91 `/search` against any configured registry (`url` or `searchUrl`).

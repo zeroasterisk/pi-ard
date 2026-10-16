@@ -2,7 +2,8 @@
  * Use the host-agnostic core (no Pi) to query real public ARD registries.
  * Run: node --experimental-strip-types examples/search-public-registries.ts "pdf"
  */
-import { checkEntry, fetchCatalog, search, signatureLabel } from "../src/core/index.ts";
+import { fetchCatalog, search } from "../src/core/client.ts";
+import { checkEntry, signatureLabel } from "../src/core/entry.ts";
 
 const text = process.argv[2] ?? "pdf";
 const registries = [

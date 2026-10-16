@@ -2,7 +2,7 @@
 
 ## Layout
 ```
-src/core/      host-agnostic ARD client (no Pi imports) — exported as pi-ard/core
+src/core/      host-agnostic ARD client (no Pi imports)
   http.ts      one guarded request path: https-only, caps, same-host redirects, ARD error codes
   client.ts    search (§5.3), catalog resolution (§5.1)
   entry.ts     structure checks, publisher binding (§4.5.1), media-type → kind, trust matching
@@ -13,7 +13,7 @@ src/extension.ts  Pi glue: 3 tools + /ard, session cache of seen entries
 
 ## Decisions (ADR-style)
 
-**D1: Write our own small client instead of using an SDK.** We surveyed this on 2026-10-16. `ards-project` publishes only `ard-spec` and `ard-connectors` (prompt/MCP connectors), with no SDK. `ai-catalog@0.1.2` and `ai-catalog-sdk@0.0.1` on npm target the predecessor AI Catalog document, have no `/search` client, and the second is a 0.0.1 placeholder. ARD's client surface is two endpoints. `src/core` is about 400 lines with no runtime dependencies and sits behind `pi-ard/core`, so an official SDK can replace it without touching the Pi surface.
+**D1: Write our own small client instead of using an SDK.** We surveyed this on 2026-10-16. `ards-project` publishes only `ard-spec` and `ard-connectors` (prompt/MCP connectors), with no SDK. `ai-catalog@0.1.2` and `ai-catalog-sdk@0.0.1` on npm target the predecessor AI Catalog document, have no `/search` client, and the second is a 0.0.1 placeholder. ARD's client surface is two endpoints. `src/core` is about 400 lines with no runtime dependencies and is isolated, so an official SDK can replace it without touching the Pi surface.
 
 **D2: Install by identifier from a session cache.** The model gives only an identifier. The entry body must come from a registry response in the same session. This closes the "model fabricates an entry pointing at evil.com" path. The cost is that the user must search or browse first, which they would anyway.
 
