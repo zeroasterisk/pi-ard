@@ -67,7 +67,7 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 ## What gets installed, and how
 
 **Skills** (`application/agent-skills+md`, plus the `application/ai-skill` alias that HF and GitHub return):
-- The source URL is resolved from `metadata.raw_url`, from a raw SKILL.md URL, or from a GitHub `blob/…/SKILL.md` URL rewritten to `raw.githubusercontent.com`. GitHub `tree/` directory pages are refused, never guessed.
+- The source URL is resolved from `metadata.raw_url`, from a GitHub `blob/…/SKILL.md` URL rewritten to `raw.githubusercontent.com`, or from any other URL ending in `SKILL.md` (HF Space skills are served by Discover that way). GitHub `tree/` directory pages are refused, never guessed.
 - You confirm **before** anything is fetched. The file must have frontmatter with a `description` (Pi skips skills without one) and a valid Agent Skills name. pi-ard never overwrites an existing skill.
 - Only `SKILL.md` is installed. If it cites bundled files (`scripts/…`, `references/…`), the result lists them as missing so you can fetch the rest from the source.
 - Run `/reload` to load the skill.

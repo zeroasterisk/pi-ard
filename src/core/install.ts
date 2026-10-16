@@ -48,25 +48,21 @@ export function assessTrust(entry: ArdEntry, fetchUrl: string | undefined, confi
 
 // ---------- skills ----------
 
-const RAW_HOSTS = new Set(["raw.githubusercontent.com"]);
 const GH_BLOB = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+\/SKILL\.md)$/i;
 
 /**
- * Where to download SKILL.md from. Order: `metadata.raw_url` (HF Discover), a raw-host SKILL.md
- * `url`, a GitHub `blob/.../SKILL.md` url (rewritten to raw.githubusercontent.com, GitHub's
- * documented raw form), or any other non-github.com `.md` url for a standard skill type.
- * GitHub `tree/` directory pages are never fetched or guessed into a file path.
+ * Where to download SKILL.md from: `metadata.raw_url` (HF Discover's GitHub skills), a GitHub
+ * `blob/.../SKILL.md` page rewritten to raw.githubusercontent.com (GitHub's documented raw form),
+ * or any other url ending in SKILL.md (HF Space skills are served by Discover at .../SKILL.md).
+ * Directory pages (GitHub `tree/`) are never fetched or guessed into a file path.
  */
 export function skillSourceUrl(entry: ArdEntry): string | undefined {
 	const raw = entry.metadata?.raw_url;
 	if (typeof raw === "string" && /\/SKILL\.md$/i.test(raw)) return raw;
-	if (!entry.url) return undefined;
-	if (/\/SKILL\.md$/i.test(entry.url) && RAW_HOSTS.has(hostOf(entry.url) ?? "")) return entry.url;
-	const blob = GH_BLOB.exec(entry.url);
+	const url = entry.url ?? "";
+	const blob = GH_BLOB.exec(url);
 	if (blob) return `https://raw.githubusercontent.com/${blob[1]}/${blob[2]}/${blob[3]}`;
-	if (/\.md$/i.test(entry.url) && entry.type === "application/agent-skills+md" && hostOf(entry.url) !== "github.com") {
-		return entry.url;
-	}
+	if (/\/SKILL\.md$/i.test(url) && hostOf(url) !== "github.com") return url;
 	return undefined;
 }
 

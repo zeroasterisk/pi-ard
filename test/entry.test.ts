@@ -91,6 +91,12 @@ describe("skill source resolution: never guesses", () => {
 		const e = (fixtureJson("live/gh-search.json") as { results: never[] }).results[0]!;
 		assert.equal(skillSourceUrl(e), "https://raw.githubusercontent.com/github/awesome-copilot/main/skills/convert-pdf-to-md/SKILL.md");
 	});
+	it("HF Space skill (Discover-served .../SKILL.md, type ai-skill): used as-is; was refused", () => {
+		assert.equal(
+			skillSourceUrl({ identifier: "urn:air:huggingface.co:skill:space:hysts:daily-papers", type: "application/ai-skill", url: "https://huggingface-hf-discover.hf.space/skills/huggingface/hysts/daily-papers/SKILL.md" }),
+			"https://huggingface-hf-discover.hf.space/skills/huggingface/hysts/daily-papers/SKILL.md",
+		);
+	});
 	it("GitHub tree/ directory without raw_url: refuses", () => {
 		assert.equal(skillSourceUrl({ identifier: "urn:air:github.com:a:b", type: "application/ai-skill", url: "https://github.com/a/b/tree/main/skills/x" }), undefined);
 	});

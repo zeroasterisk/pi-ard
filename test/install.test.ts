@@ -45,7 +45,7 @@ describe("install: skills", () => {
 			"GET /example.com/skills/pdf-tools/SKILL.md": () => ({ text: SKILL }),
 			// Recorded 2026-10-16 from huggingface/skills; cites scripts/paper_manager.py which is not installed.
 			"GET /example.com/skills/huggingface-paper-publisher/SKILL.md": () => ({ text: fixture("live/hf-skill-paper-publisher.md") }),
-			"GET /example.com/notskill.md": () => ({ text: "# no frontmatter" }),
+			"GET /example.com/notskill/SKILL.md": () => ({ text: "<html>sign in</html>" }),
 			"GET /untrusted.io/s/SKILL.md": () => ({ text: SKILL.replace("pdf-tools", "other") }),
 		});
 	});
@@ -112,8 +112,8 @@ describe("install: skills", () => {
 
 	it("non-SKILL.md content refused after fetch, nothing written", async () => {
 		const t = ctx(mock, [true]);
-		const out = await install({ ...skillEntry, url: "https://example.com/notskill.md" }, t.c);
-		assert.equal(out.status, "refused");
+		const out = await install({ ...skillEntry, url: "https://example.com/notskill/SKILL.md" }, t.c);
+		assert.match((out as { reason: string }).reason, /no YAML frontmatter/);
 		assert.ok(!existsSync(join(t.agentDir, "skills", "pdf-tools")));
 	});
 
