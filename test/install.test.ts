@@ -127,7 +127,7 @@ describe("install: skills", () => {
 	it("declared trust manifest shown as NOT verified", async () => {
 		const t = ctx(mock, [false]);
 		await install({ ...skillEntry, trustManifest: { identity: "spiffe://example.com/x", trustSchema: { identifier: "ai-card-trust" } } }, t.c);
-		assert.match(t.asked[0]!, /trust manifest declared \(ai-card-trust\), signature NOT verified/);
+		assert.match(t.asked[0]!, /trust manifest declared \(ai-card-trust\); signature and attestations NOT verified/);
 	});
 
 	it("unresolvable source (GitHub tree page) refused without asking", async () => {

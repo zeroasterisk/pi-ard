@@ -54,7 +54,7 @@ ARD v0.91 defines a `trustManifest` (identity, attestations, provenance) but lea
 | 15 s timeout and 1 MB response cap (256 KB for SKILL.md) | enforced |
 | Entry structure (§4): `urn:air` identifier, exactly one of `url` or `data` | enforced. Invalid entries are listed but cannot be installed. |
 | §4.5.1 publisher binding: `trustManifest.identity` (SPIFFE, did:web, https) must be in the publisher's domain | enforced. A mismatch is refused. |
-| `trustManifest` present | shown as **"trust manifest declared, signature NOT verified"** |
+| `trustManifest` present | shown with the declared attestation types, labeled **"signature and attestations NOT verified"** |
 | Signature or attestation verification | **not done**. pi-ard has nothing to verify against yet, so it never claims verification. |
 | Installed skill integrity | Source URL and sha256 are recorded in `<agent-dir>/pi-ard/lock.json` |
 

@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 ## [Unreleased]
 
 ### Fixed
+- The confirm prompt names declared attestations (e.g. `SOC2-Type2, agent-threat-scan`) instead of a count nobody displayed, and says both signature and attestations are NOT verified.
 - A corrupt `lock.json` no longer leaves an orphan skill: the lock is read before anything is written, and the error names the file.
 - stdio MCP command comes only from `registryType` (npm→npx, pypi→uvx, oci→docker). The card's free-form `runtimeHint` used to choose the program (`"bash"` worked). Package ids starting with `-` or containing spaces, and non-plain versions, are rejected.
 - MCP trust is assessed against the server URL the tools will call, not just the card URL. A card from a trusted host (or inline `data`) naming a remote on another host was shown as "trusted".

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { checkEntry, identityDomain, isTrustedDomain, kindOf, publisherOf } from "../src/core/entry.ts";
+import { checkEntry, identityDomain, isTrustedDomain, kindOf, publisherOf, signatureLabel } from "../src/core/entry.ts";
 import { parseSkill, skillSourceUrl } from "../src/core/install.ts";
 import { fixtureJson } from "./helpers.ts";
 
@@ -52,11 +52,11 @@ describe("entry: trust manifest (§4.5) — declared, never verified", () => {
 		assert.equal(identityDomain("did:key:z6Mk"), undefined);
 	});
 
-	it("scan-attestation example: label says declared, NOT verified; counts attestations", () => {
+	it("scan-attestation example: user sees which attestations are declared, and that none are verified", () => {
 		const doc = fixtureJson("spec/scan-attestation-ard.json") as { entries: never[] };
 		const c = checkEntry(doc.entries[0]!, true);
 		assert.equal(c.signature, "declared-unverified");
-		assert.equal(c.attestations, 2);
+		assert.equal(signatureLabel(c), "trust manifest declared; attestations declared: SOC2-Type2, agent-threat-scan; signature and attestations NOT verified");
 		assert.deepEqual(c.problems, []);
 	});
 

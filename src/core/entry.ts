@@ -65,7 +65,8 @@ export interface EntryCheck {
 	/** Labels shown to the user. Never mean "verified". */
 	signature: Signature;
 	trustSchema?: string;
-	attestations: number;
+	/** Declared attestation types, e.g. "SOC2-Type2", "agent-threat-scan". Not fetched, not verified. */
+	attestations: string[];
 }
 
 /**
@@ -105,7 +106,7 @@ export function checkEntry(entry: ArdEntry, complete: boolean): EntryCheck {
 		problems,
 		signature,
 		trustSchema: tm?.trustSchema?.identifier,
-		attestations: Array.isArray(tm?.attestations) ? tm!.attestations!.length : 0,
+		attestations: Array.isArray(tm?.attestations) ? tm!.attestations!.map((a) => String(a?.type ?? "untyped").slice(0, 40)) : [],
 	};
 }
 
@@ -128,5 +129,6 @@ export function isTrustedDomain(host: string | undefined, config: Pick<ArdConfig
 
 export function signatureLabel(c: EntryCheck): string {
 	if (c.signature === "unsigned") return "unsigned";
-	return `trust manifest declared${c.trustSchema ? ` (${c.trustSchema})` : ""}, signature NOT verified`;
+	const att = c.attestations.length ? `; attestations declared: ${c.attestations.join(", ")}` : "";
+	return `trust manifest declared${c.trustSchema ? ` (${c.trustSchema})` : ""}${att}; signature and attestations NOT verified`;
 }
