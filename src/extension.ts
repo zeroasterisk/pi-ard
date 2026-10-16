@@ -72,7 +72,8 @@ export function createPiArd(opts: PiArdOptions = {}) {
 					const out = [`Registry ${reg.name} (${r.endpoint}): ${r.results.length} result(s). ${TRUST_NOTE}`];
 					if (r.results.length === 0 && p.type?.length) out.push("Zero results with a type filter. Registry filter support varies; this does not prove the content is absent.");
 					out.push(...r.results.map((e) => line(e, config)));
-					if (r.referrals.length) out.push("Referrals (other registries; add to config to use):", ...r.referrals.map((e) => `- ${e.displayName ?? e.identifier} ${e.url ?? ""}`));
+					// §5.3: a referral url is already the full search endpoint, so it belongs in `searchUrl` (not `url`, which gets /search appended).
+					if (r.referrals.length) out.push("Referrals (not followed; to use one, add it to config as shown):", ...r.referrals.map((e) => `- ${e.displayName ?? e.identifier}: {"name":"…","searchUrl":${JSON.stringify(e.url ?? "")}}`));
 					if (r.pageToken) out.push(`More results: pageToken=${r.pageToken}`);
 					if (r.dropped) out.push(`${r.dropped} result(s) without identifier dropped.`);
 					return text(out.join("\n"), { registry: reg.name, count: r.results.length });

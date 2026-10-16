@@ -26,6 +26,7 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 						// Trusted publisher, artifact elsewhere: the list must agree with the install prompt.
 						{ identifier: "urn:air:example.com:skill:mirror", type: "application/agent-skills+md", url: "https://mirror.example.net/SKILL.md" },
 					],
+					referrals: [{ identifier: "urn:air:finder.external.org:registry:main", url: "https://finder.external.org/api/" }],
 				},
 			}),
 			"GET /example.com/skills/pdf-tools/SKILL.md": () => ({ text: SKILL }),
@@ -69,6 +70,8 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 			const [searchOut] = h.toolResults("ard_search");
 			assert.match(searchOut!, /PDF tools <urn:air:example\.com:skill:pdf-tools> \[skill, trusted, unsigned\]/);
 			assert.match(searchOut!, /<urn:air:example\.com:skill:mirror> \[skill, untrusted,/);
+			// §5.3: a referral url is a complete search endpoint; config must use searchUrl, or /search gets appended twice.
+			assert.match(searchOut!, /\{"name":"…","searchUrl":"https:\/\/finder\.external\.org\/api\/"\}/);
 			assert.match(searchOut!, /relevance only, not trust/);
 			const [installOut] = h.toolResults("ard_install");
 			assert.match(installOut!, /^installed: skill "pdf-tools"/);
