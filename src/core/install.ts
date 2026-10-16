@@ -30,7 +30,8 @@ export type InstallOutcome =
 export interface Resolution {
 	check: EntryCheck;
 	trusted: boolean;
-	trustReason: string;
+	/** "trusted" or "UNTRUSTED SOURCE (<why>)", as shown in confirm prompts. */
+	label: string;
 }
 
 /** An entry is trusted if its publisher domain AND the URL it would fetch are both on trustedDomains. */
@@ -42,7 +43,7 @@ export function assessTrust(entry: ArdEntry, fetchUrl: string | undefined, confi
 	const reasons: string[] = [];
 	if (!pubOk) reasons.push(`publisher ${check.publisher ?? "?"} not in trustedDomains`);
 	if (!urlOk) reasons.push(`host ${urlHost} not in trustedDomains`);
-	return { check, trusted: pubOk && urlOk, trustReason: reasons.join("; ") || "publisher and host are trusted" };
+	return { check, trusted: pubOk && urlOk, label: pubOk && urlOk ? "trusted" : `UNTRUSTED SOURCE (${reasons.join("; ")})` };
 }
 
 // ---------- skills ----------
@@ -117,7 +118,7 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 				["Publisher", t.check.publisher],
 				["Fetch", src],
 				["Into", skillsDir],
-				["Trust", t.trusted ? "trusted" : `UNTRUSTED SOURCE (${t.trustReason})`],
+				["Trust", t.label],
 				["Signature", signatureLabel(t.check)],
 			],
 			"Skills instruct the model to run commands and code with your permissions. Review the SKILL.md after install.",
@@ -243,7 +244,7 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 		// Fetching the card is itself a request to an untrusted host. Ask first.
 		const ok = await ctx.confirm(
 			"Fetch MCP server card from UNTRUSTED source?",
-			confirmBody([["Identifier", entry.identifier], ["Fetch", cardUrl], ["Trust", `UNTRUSTED SOURCE (${t.trustReason})`]], "Only the card is fetched. Nothing is registered yet."),
+			confirmBody([["Identifier", entry.identifier], ["Fetch", cardUrl], ["Trust", t.label]], "Only the card is fetched. Nothing is registered yet."),
 		);
 		if (!ok) return { status: "declined", reason: "User declined. Nothing was fetched or registered." };
 	}
@@ -265,7 +266,7 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 				["Publisher", t.check.publisher],
 				["Card", cardUrl],
 				[plan.transport === "http" ? "Server URL" : "Command", what],
-				["Trust", st.trusted ? "trusted" : `UNTRUSTED SOURCE (${st.trustReason})`],
+				["Trust", st.label],
 				["Signature", signatureLabel(t.check)],
 			],
 			plan.transport === "stdio"

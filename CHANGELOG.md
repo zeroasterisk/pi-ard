@@ -8,6 +8,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 - Search sends `federation: "referrals"` (was `"none"`, with an undocumented per-registry override). Referrals are shown, never followed; `"auto"` would merge results from registries the user never chose. The `federation` config key is removed.
 
 ### Fixed
+- Search/catalog listings use the same trust rule as the install prompt (publisher **and** artifact host). Real case: with `github.com` trusted, HF skill results were listed "trusted" while the install dialog said UNTRUSTED (`raw.githubusercontent.com`).
 - An identifier returned by two sources with different urls is refused instead of silently using the last one. Any registry can return any identifier; last-write-wins let a second search swap where a known identifier pointed.
 - The confirm prompt names declared attestations (e.g. `SOC2-Type2, agent-threat-scan`) instead of a count nobody displayed, and says both signature and attestations are NOT verified.
 - A corrupt `lock.json` no longer leaves an orphan skill: the lock is read before anything is written, and the error names the file.

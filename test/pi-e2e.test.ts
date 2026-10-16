@@ -23,6 +23,8 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 							url: "https://example.com/skills/pdf-tools/SKILL.md",
 							score: 0.9,
 						},
+						// Trusted publisher, artifact elsewhere: the list must agree with the install prompt.
+						{ identifier: "urn:air:example.com:skill:mirror", type: "application/agent-skills+md", url: "https://mirror.example.net/SKILL.md" },
 					],
 				},
 			}),
@@ -66,6 +68,7 @@ describe("pi e2e: extension loaded into a real Pi AgentSession", () => {
 			await h.session.prompt("find and install a pdf skill");
 			const [searchOut] = h.toolResults("ard_search");
 			assert.match(searchOut!, /PDF tools <urn:air:example\.com:skill:pdf-tools> \[skill, trusted, unsigned\]/);
+			assert.match(searchOut!, /<urn:air:example\.com:skill:mirror> \[skill, untrusted,/);
 			assert.match(searchOut!, /relevance only, not trust/);
 			const [installOut] = h.toolResults("ard_install");
 			assert.match(installOut!, /^installed: skill "pdf-tools"/);
