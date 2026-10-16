@@ -14,6 +14,7 @@ curl -s -X POST $G -H "$J" -d '{"query":{"text":"github","filter":{"type":["appl
 curl -s https://huggingface.co/.well-known/ai-catalog.json > hf-ai-catalog.json
 curl -s https://huggingface.co/mcp/server-card > hf-mcp-server-card.json
 curl -s "https://api.mcp.github.com/oss/v0.1/servers/microsoft%2Fmarkitdown/versions/latest" > mcp-registry-markitdown.json
+curl -s https://raw.githubusercontent.com/huggingface/skills/main/skills/huggingface-paper-publisher/SKILL.md > hf-skill-paper-publisher.md
 # error shapes (body + status)
 curl -s -w '%{http_code}' -X POST $H -H "$J" -d '{}' > hf-search-400.txt
 curl -s -w '%{http_code}' -X POST $G -H "$J" -d '{}' > gh-search-400.txt

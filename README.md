@@ -66,7 +66,8 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 
 **Skills** (`application/agent-skills+md`, plus the `application/ai-skill` alias that HF and GitHub return):
 - The source URL is resolved from `metadata.raw_url`, from a raw SKILL.md URL, or from a GitHub `blob/…/SKILL.md` URL rewritten to `raw.githubusercontent.com`. GitHub `tree/` directory pages are refused, never guessed.
-- You confirm **before** anything is fetched. The file must have YAML frontmatter and a valid Agent Skills name. pi-ard never overwrites an existing skill.
+- You confirm **before** anything is fetched. The file must have frontmatter with a `description` (Pi skips skills without one) and a valid Agent Skills name. pi-ard never overwrites an existing skill.
+- Only `SKILL.md` is installed. If it cites bundled files (`scripts/…`, `references/…`), the result lists them as missing so you can fetch the rest from the source.
 - Run `/reload` to load the skill.
 
 **MCP servers** (`application/mcp-server-card+json`, plus the `application/mcp-server+json` alias from the MCP registry):
@@ -84,7 +85,7 @@ As of 2026-10 there is no official ARD SDK. The `ards-project` org publishes onl
 
 ```
 npm ci
-npm run check          # typecheck + 56 offline tests (unit, contract, real Pi AgentSession e2e)
+npm run check          # typecheck + offline tests (unit, contract, real Pi AgentSession e2e)
 npm run test:live      # opt-in: real Hugging Face + GitHub registries
 node --experimental-strip-types examples/rpc-smoke.ts   # real `pi --mode rpc`, confirm over RPC
 ```

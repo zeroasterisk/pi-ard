@@ -120,8 +120,12 @@ export function createPiArd(opts: PiArdOptions = {}) {
 						http: { ...opts.http, signal },
 					});
 					switch (outcome.status) {
-						case "installed":
-							return text(`installed: skill "${outcome.name}" at ${outcome.path} (sha256 ${outcome.sha256.slice(0, 12)}…). Run /reload to load it.`, outcome);
+						case "installed": {
+							const miss = outcome.missing.length
+								? ` WARNING: only SKILL.md was installed; it references ${outcome.missing.length} bundled file(s) that are missing (${outcome.missing.slice(0, 5).join(", ")}${outcome.missing.length > 5 ? ", …" : ""}). Source: ${outcome.url}`
+								: "";
+							return text(`installed: skill "${outcome.name}" at ${outcome.path} (sha256 ${outcome.sha256.slice(0, 12)}…). Run /reload to load it.${miss}`, outcome);
+						}
 						case "mcp-ready":
 							return text(`mcp-ready: "${outcome.name}" registered for this session only. To keep it: ${outcome.persistCommand}`, outcome);
 						default:

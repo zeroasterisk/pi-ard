@@ -21,7 +21,7 @@ export interface InstallContext {
 }
 
 export type InstallOutcome =
-	| { status: "installed"; kind: "skill"; name: string; path: string; sha256: string; url: string }
+	| { status: "installed"; kind: "skill"; name: string; path: string; sha256: string; url: string; missing: string[] }
 	| { status: "mcp-ready"; name: string; transport: "http"; url: string; persistCommand: string }
 	| { status: "mcp-ready"; name: string; transport: "stdio"; command: string; args: string[]; persistCommand: string }
 	| { status: "declined"; reason: string }
@@ -149,7 +149,17 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 		trusted: t.trusted,
 	};
 	writeJsonAtomic(lp, { installs: [...lock.filter((l) => l.path !== dir), rec] });
-	return { status: "installed", kind: "skill", name, path: dir, sha256, url: res.url };
+	return { status: "installed", kind: "skill", name, path: dir, sha256, url: res.url, missing: bundledRefs(body) };
+}
+
+/**
+ * Relative paths a SKILL.md refers to (scripts/, references/, assets/...). Only SKILL.md is
+ * installed, so these will be missing. Real case: HF's huggingface-llm-trainer cites
+ * scripts/train_sft_example.py and references/*.md.
+ */
+export function bundledRefs(body: string): string[] {
+	const refs = body.match(/(?<![\w/.:-])(?:\.\/)?(?:scripts|references|assets|templates|examples)\/[\w./-]*[\w-]/g) ?? [];
+	return [...new Set(refs.map((r) => r.replace(/^\.\//, "")))];
 }
 
 // ---------- MCP ----------

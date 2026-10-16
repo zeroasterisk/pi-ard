@@ -7,7 +7,7 @@ import { after, before, describe, it } from "node:test";
 import { readLock } from "../src/core/config.ts";
 import { install, planMcp, type McpInstallContext } from "../src/core/install.ts";
 import type { ArdConfig, ArdEntry } from "../src/core/types.ts";
-import { fixtureJson, mockServer, routedHttp, type MockServer } from "./helpers.ts";
+import { fixture, fixtureJson, mockServer, routedHttp, type MockServer } from "./helpers.ts";
 
 const SKILL = "---\nname: pdf-tools\ndescription: PDFs\n---\n# body\n";
 
@@ -43,6 +43,8 @@ describe("install: skills", () => {
 	before(async () => {
 		mock = await mockServer({
 			"GET /example.com/skills/pdf-tools/SKILL.md": () => ({ text: SKILL }),
+			// Recorded 2026-10-16 from huggingface/skills; cites scripts/paper_manager.py which is not installed.
+			"GET /example.com/skills/huggingface-paper-publisher/SKILL.md": () => ({ text: fixture("live/hf-skill-paper-publisher.md") }),
 			"GET /example.com/notskill.md": () => ({ text: "# no frontmatter" }),
 			"GET /untrusted.io/s/SKILL.md": () => ({ text: SKILL.replace("pdf-tools", "other") }),
 		});
@@ -69,6 +71,13 @@ describe("install: skills", () => {
 		assert.equal(lock!.sha256, createHash("sha256").update(SKILL).digest("hex"));
 		assert.equal(lock!.url, "https://example.com/skills/pdf-tools/SKILL.md");
 		assert.equal(lock!.trusted, true);
+		assert.deepEqual((out as { missing: string[] }).missing, []);
+	});
+
+	it("real HF skill: bundled files it cites are reported missing (only SKILL.md is installed)", async () => {
+		const t = ctx(mock, [true]);
+		const out = await install({ ...skillEntry, identifier: "urn:air:example.com:skill:pp", url: "https://example.com/skills/huggingface-paper-publisher/SKILL.md" }, t.c);
+		assert.deepEqual((out as { missing: string[] }).missing, ["scripts/paper_manager.py"]);
 	});
 
 	it("never overwrites an existing skill", async () => {
