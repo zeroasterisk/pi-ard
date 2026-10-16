@@ -134,10 +134,10 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 	if (existsSync(dir)) return { status: "refused", reason: `Skill "${name}" already exists at ${dir}. Not overwriting.` };
 
 	const sha256 = createHash("sha256").update(body).digest("hex");
+	const lp = lockPath(ctx.agentDir);
+	const lock = readLock(lp); // before any write: a corrupt lock must not leave an orphan SKILL.md
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, "SKILL.md"), body, { flag: "wx" });
-	const lp = lockPath(ctx.agentDir);
-	const lock = readLock(lp);
 	const rec: LockEntry = {
 		identifier: entry.identifier,
 		kind: "skill",

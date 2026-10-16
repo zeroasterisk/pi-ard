@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -78,6 +78,14 @@ describe("install: skills", () => {
 		const t = ctx(mock, [true]);
 		const out = await install({ ...skillEntry, identifier: "urn:air:example.com:skill:pp", url: "https://example.com/skills/huggingface-paper-publisher/SKILL.md" }, t.c);
 		assert.deepEqual((out as { missing: string[] }).missing, ["scripts/paper_manager.py"]);
+	});
+
+	it("corrupt lock.json: refuses before writing (was: SKILL.md written, then throw, orphan left)", async () => {
+		const t = ctx(mock, [true]);
+		mkdirSync(join(t.agentDir, "pi-ard"), { recursive: true });
+		writeFileSync(join(t.agentDir, "pi-ard", "lock.json"), "{not json");
+		await assert.rejects(install(skillEntry, t.c), /Corrupt .*lock\.json.*nothing was installed/);
+		assert.ok(!existsSync(join(t.agentDir, "skills", "pdf-tools")));
 	});
 
 	it("never overwrites an existing skill", async () => {

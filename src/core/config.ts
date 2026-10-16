@@ -70,6 +70,11 @@ export function lockPath(agentDir: string): string {
 
 export function readLock(path: string): LockEntry[] {
 	if (!existsSync(path)) return [];
-	const j = JSON.parse(readFileSync(path, "utf8")) as { installs?: LockEntry[] };
+	let j: { installs?: LockEntry[] };
+	try {
+		j = JSON.parse(readFileSync(path, "utf8"));
+	} catch (e) {
+		throw new Error(`Corrupt ${path} (${e instanceof Error ? e.message : String(e)}). Fix or delete it; nothing was installed.`);
+	}
 	return Array.isArray(j.installs) ? j.installs : [];
 }
