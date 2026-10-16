@@ -1,6 +1,6 @@
 import { StringEnum, Type } from "@earendil-works/pi-ai";
 import { defineTool, getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { fetchCatalog, fetchCatalogUrl, search, searchEndpoint } from "./core/client.ts";
+import { catalogHost, fetchCatalog, fetchCatalogUrl, search, searchEndpoint } from "./core/client.ts";
 import { configPath, loadConfig, lockPath, readLock } from "./core/config.ts";
 import { checkEntry, hostOf, isTrustedDomain, signatureLabel } from "./core/entry.ts";
 import type { HttpOptions } from "./core/http.ts";
@@ -83,7 +83,8 @@ export function createPiArd(opts: PiArdOptions = {}) {
 				async execute(_id, p, signal) {
 					const config = cfg();
 					if (!p.domain === !p.url) throw new Error("Pass exactly one of domain or url.");
-					const host = p.domain ? p.domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/[/:].*$/, "") : hostOf(p.url!);
+					// Check the exact host that will be fetched (one normalizer, shared with fetchCatalog).
+					const host = p.domain ? catalogHost(p.domain).replace(/:\d+$/, "") : hostOf(p.url!);
 					if (!isTrustedDomain(host, config)) {
 						throw new Error(`${host} is not in trustedDomains. Add it to ${configPath(agentDir())} to allow fetching.`);
 					}

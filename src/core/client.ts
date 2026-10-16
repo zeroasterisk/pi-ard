@@ -96,9 +96,15 @@ function parseManifest(json: unknown, url: string): Omit<CatalogResult, "path" |
  * ARD §5.1 consumer resolution: fetch https://{domain}/.well-known/ard.json (MUST); if that is not
  * a JSON manifest with entries[], try the predecessor /.well-known/ai-catalog.json (MAY).
  */
-export async function fetchCatalog(domain: string, http?: HttpOptions): Promise<CatalogResult> {
+/** "https://Example.com/x" -> "example.com"; "localhost:8787" kept with port. Throws unless a plain host[:port]. */
+export function catalogHost(domain: string): string {
 	const host = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 	if (!/^[a-z0-9.-]+(:\d+)?$/.test(host)) throw new ArdHttpError(`Not a domain: ${domain}`, domain);
+	return host;
+}
+
+export async function fetchCatalog(domain: string, http?: HttpOptions): Promise<CatalogResult> {
+	const host = catalogHost(domain);
 	const base = `${isLoopback(host.replace(/:\d+$/, "")) ? "http" : "https"}://${host}`;
 	let reason: string;
 	try {
