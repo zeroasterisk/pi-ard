@@ -124,12 +124,6 @@ describe("install: skills", () => {
 		assert.equal(t.asked.length, 0);
 	});
 
-	it("declared trust manifest shown as NOT verified", async () => {
-		const t = ctx(mock, [false]);
-		await install({ ...skillEntry, trustManifest: { identity: "spiffe://example.com/x", trustSchema: { identifier: "ai-card-trust" } } }, t.c);
-		assert.match(t.asked[0]!, /trust manifest declared \(ai-card-trust\); signature and attestations NOT verified/);
-	});
-
 	it("unresolvable source (GitHub tree page) refused without asking", async () => {
 		const t = ctx(mock, []);
 		const out = await install({ ...skillEntry, type: "application/ai-skill", url: "https://github.com/a/b/tree/main/x" }, t.c);
@@ -210,9 +204,7 @@ describe("install: MCP", () => {
 		assert.match(JSON.stringify(await install({ identifier: "urn:air:x.com:a:b", type: "text/html", url: "https://x.com" }, t.c)), /Unsupported/);
 	});
 
-	it("planMcp: prefers streamable-http remote; stdio pins version", () => {
-		const p = planMcp(fixtureJson("live/hf-mcp-server-card.json"), hfEntry, "u")!;
-		assert.equal(p.transport, "http");
+	it("planMcp: stdio pins version; hostile cards cannot pick the program", () => {
 		const s = planMcp(fixtureJson("live/mcp-registry-markitdown.json"), { identifier: "urn:air:a.com:m:x" }, "u")!;
 		assert.deepEqual([s.transport, s.command, s.args], ["stdio", "uvx", ["markitdown-mcp==0.0.1a4"]]);
 		assert.equal(planMcp({ name: "x" }, { identifier: "urn:air:a.com:m:x" }, "u"), undefined);

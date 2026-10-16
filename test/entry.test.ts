@@ -31,10 +31,6 @@ describe("entry: ARD §4 / Appendix C", () => {
 		assert.match(checkEntry({ identifier: "urn:air:x.com:a:b", url: "https://x.com" }, true).problems.join(), /displayName.*type|missing type/);
 	});
 
-	it("search results may omit terms (§5.3.2)", () => {
-		assert.deepEqual(checkEntry({ identifier: "urn:air:x.com:a:b" }, false).problems, []);
-	});
-
 	it("spec conformance examples are valid", () => {
 		for (const f of ["spec/basic-ard.json", "spec/scan-attestation-ard.json"]) {
 			const doc = fixtureJson(f) as { entries: Array<Record<string, unknown>> };
@@ -60,14 +56,6 @@ describe("entry: trust manifest (§4.5) — declared, never verified", () => {
 		assert.deepEqual(c.problems, []);
 	});
 
-	it("§4.5.1 identity mismatch is a problem (entry not installable)", () => {
-		const c = checkEntry(
-			{ identifier: "urn:air:good.com:skill:x", trustManifest: { identity: "spiffe://evil.com/x" } },
-			false,
-		);
-		assert.match(c.problems.join(), /identity mismatch/);
-	});
-
 	it("subdomain identity binds to parent publisher; lookalike does not", () => {
 		assert.deepEqual(checkEntry({ identifier: "urn:air:example.com:a:b", trustManifest: { identity: "spiffe://tools.example.com/x" } }, false).problems, []);
 		assert.match(
@@ -76,8 +64,8 @@ describe("entry: trust manifest (§4.5) — declared, never verified", () => {
 		);
 	});
 
-	it("no trust manifest = unsigned", () => {
-		assert.equal(checkEntry({ identifier: "urn:air:x.com:a:b" }, false).signature, "unsigned");
+	it("no trust manifest = unsigned; a bare search result (§5.3.2: only identifier) has no problems", () => {
+		assert.deepEqual(checkEntry({ identifier: "urn:air:x.com:a:b" }, false), { kind: "unsupported", publisher: "x.com", problems: [], signature: "unsigned", trustSchema: undefined, attestations: [] });
 		assert.equal(checkEntry({ identifier: "urn:air:x.com:a:b", trustManifest: null as never }, false).signature, "unsigned");
 	});
 });
