@@ -32,9 +32,11 @@ Config lives at `~/.pi/agent/pi-ard/config.json` (override with `PI_ARD_CONFIG`)
     { "name": "huggingface", "url": "https://huggingface-hf-discover.hf.space" },
     { "name": "github",      "searchUrl": "https://agentfinder.github.com/api/v1/search" }
   ],
-  "trustedDomains": ["internal.example.com", "huggingface.co", "raw.githubusercontent.com"]
+  "trustedDomains": ["internal.example.com", "huggingface.co", "github.com", "raw.githubusercontent.com"]
 }
 ```
+
+Trust follows the identifier, not the registry that returned it. Hugging Face's own skills come back from HF Discover as `urn:air:github.com:huggingface:skills:…` with the file on `raw.githubusercontent.com`, so trusting them takes `github.com` and `raw.githubusercontent.com`. Note that `github.com` then covers every GitHub-hosted publisher, not just Hugging Face; that is the granularity ARD's `urn:air:<domain>` gives today.
 
 - `url` is a registry base URL; `/search` is appended. `searchUrl` is used exactly as given, for registries that serve search somewhere else.
 - The first registry is the default. The model can name another one by its `name`.
