@@ -10,6 +10,11 @@ pi install git:github.com/zeroasterisk/pi-ard
 
 Pi calls `ard_search` and shows where each result comes from, whether it is trusted, and whether it is signed. Before anything is written or registered, Pi asks you.
 
+
+![pi-ard in a real Pi session: search Hugging Face, confirm, install](demo/pi-ard.gif)
+
+Real session, nothing staged: [demo/](demo/). Hugging Face walkthrough with exact output: [docs/SCENARIOS.md](docs/SCENARIOS.md).
+
 ## What it adds
 
 | Surface | What it does |
