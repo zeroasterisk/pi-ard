@@ -1,8 +1,21 @@
 {
 	"registries": [
-		{ "name": "team", "url": "http://127.0.0.1:8787" },
-		{ "name": "huggingface", "url": "https://huggingface-hf-discover.hf.space" },
-		{ "name": "github", "searchUrl": "https://agentfinder.github.com/api/v1/search" }
+		{
+			"name": "team",
+			"url": "http://127.0.0.1:8787"
+		},
+		{
+			"name": "huggingface",
+			"url": "https://huggingface-hf-discover.hf.space"
+		},
+		{
+			"name": "github",
+			"searchUrl": "https://agentfinder.github.com/api/v1/search"
+		}
 	],
-	"trustedDomains": ["huggingface.co", "raw.githubusercontent.com"]
+	"trustedDomains": [
+		"huggingface.co",
+		"github.com",
+		"raw.githubusercontent.com"
+	]
 }

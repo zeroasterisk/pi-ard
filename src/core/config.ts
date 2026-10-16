@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import type { ArdConfig, RegistryConfig } from "./types.ts";
 
 export const DEFAULT_CONFIG: ArdConfig = {
-	registries: [{ name: "huggingface", url: "https://huggingface-hf-discover.hf.space", federation: "none" }],
+	registries: [{ name: "huggingface", url: "https://huggingface-hf-discover.hf.space" }],
 	trustedDomains: ["huggingface.co"],
 };
 
@@ -21,7 +21,6 @@ export function validateConfig(c: unknown): string[] {
 				const reg = r as Partial<RegistryConfig>;
 				if (!reg || typeof reg.name !== "string" || !NAME.test(reg.name)) p.push(`registries[${i}].name must match ${NAME}`);
 				if (!reg?.url === !reg?.searchUrl) p.push(`registries[${i}] needs exactly one of url or searchUrl`);
-				if (reg?.federation && !["auto", "referrals", "none"].includes(reg.federation)) p.push(`registries[${i}].federation invalid`);
 			});
 	}
 	if (cfg.trustedDomains !== undefined && !(Array.isArray(cfg.trustedDomains) && cfg.trustedDomains.every((d) => typeof d === "string"))) {
@@ -70,6 +69,11 @@ export function lockPath(agentDir: string): string {
 
 export function readLock(path: string): LockEntry[] {
 	if (!existsSync(path)) return [];
-	const j = JSON.parse(readFileSync(path, "utf8")) as { installs?: LockEntry[] };
+	let j: { installs?: LockEntry[] };
+	try {
+		j = JSON.parse(readFileSync(path, "utf8"));
+	} catch (e) {
+		throw new Error(`Corrupt ${path} (${e instanceof Error ? e.message : String(e)}). Fix or delete it; nothing was installed.`);
+	}
 	return Array.isArray(j.installs) ? j.installs : [];
 }

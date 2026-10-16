@@ -43,14 +43,15 @@ describe("contract: search against recorded live registry responses", () => {
 		assert.ok(r.results.length > 0);
 		assert.ok(r.results.every((e) => e.identifier.startsWith("urn:air:")));
 		const sent = JSON.parse(mock.requests.at(-1)!.body);
-		assert.deepEqual(sent, { query: { text: "paper" }, federation: "none", pageSize: 5 });
+		assert.deepEqual(sent, { query: { text: "paper" }, federation: "referrals", pageSize: 5 });
 		assert.equal(http.calls[0], "POST https://hf.test/search");
 	});
 
-	it("type filter is sent as query.filter.type", async () => {
+	it("type filter is sent as query.filter.type, expanded with registry aliases of the same kind", async () => {
 		const r = await search({ name: "hf", url: "https://hf.test/" }, { text: "video", types: ["application/mcp-server-card+json"] }, routedHttp(mock));
 		assert.ok(r.results.every((e) => e.type === "application/mcp-server-card+json"));
-		assert.deepEqual(JSON.parse(mock.requests.at(-1)!.body).query.filter, { type: ["application/mcp-server-card+json"] });
+		// Live 2026-10-16: GitHub returns 0 for mcp-server-card+json, 2 for its mcp-server+json alias.
+		assert.deepEqual(JSON.parse(mock.requests.at(-1)!.body).query.filter, { type: ["application/mcp-server-card+json", "application/mcp-server+json"] });
 	});
 
 	it("GitHub Agent Finder: mediaType normalized to type; pageToken surfaced", async () => {

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 import { lockPath, readLock, writeJsonAtomic, type LockEntry } from "./config.ts";
 import { checkEntry, hostOf, isTrustedDomain, signatureLabel, type EntryCheck } from "./entry.ts";
-import { type HttpOptions, getJson, request } from "./http.ts";
+import { type HttpOptions, assertSafeUrl, getJson, request } from "./http.ts";
 import type { ArdConfig, ArdEntry } from "./types.ts";
 
 /**
@@ -20,7 +21,7 @@ export interface InstallContext {
 }
 
 export type InstallOutcome =
-	| { status: "installed"; kind: "skill"; name: string; path: string; sha256: string; url: string }
+	| { status: "installed"; kind: "skill"; name: string; path: string; sha256: string; url: string; missing: string[] }
 	| { status: "mcp-ready"; name: string; transport: "http"; url: string; persistCommand: string }
 	| { status: "mcp-ready"; name: string; transport: "stdio"; command: string; args: string[]; persistCommand: string }
 	| { status: "declined"; reason: string }
@@ -29,7 +30,8 @@ export type InstallOutcome =
 export interface Resolution {
 	check: EntryCheck;
 	trusted: boolean;
-	trustReason: string;
+	/** "trusted" or "UNTRUSTED SOURCE (<why>)", as shown in confirm prompts. */
+	label: string;
 }
 
 /** An entry is trusted if its publisher domain AND the URL it would fetch are both on trustedDomains. */
@@ -40,42 +42,47 @@ export function assessTrust(entry: ArdEntry, fetchUrl: string | undefined, confi
 	const urlOk = urlHost ? isTrustedDomain(urlHost, config) : true;
 	const reasons: string[] = [];
 	if (!pubOk) reasons.push(`publisher ${check.publisher ?? "?"} not in trustedDomains`);
-	if (!urlOk) reasons.push(`fetch host ${urlHost} not in trustedDomains`);
-	return { check, trusted: pubOk && urlOk, trustReason: reasons.join("; ") || "publisher and fetch host are trusted" };
+	if (!urlOk) reasons.push(`host ${urlHost} not in trustedDomains`);
+	return { check, trusted: pubOk && urlOk, label: pubOk && urlOk ? "trusted" : `UNTRUSTED SOURCE (${reasons.join("; ")})` };
 }
 
 // ---------- skills ----------
 
-const RAW_HOSTS = new Set(["raw.githubusercontent.com"]);
 const GH_BLOB = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+\/SKILL\.md)$/i;
 
 /**
- * Where to download SKILL.md from. Order: `metadata.raw_url` (HF Discover), a raw-host SKILL.md
- * `url`, a GitHub `blob/.../SKILL.md` url (rewritten to raw.githubusercontent.com, GitHub's
- * documented raw form), or any other non-github.com `.md` url for a standard skill type.
- * GitHub `tree/` directory pages are never fetched or guessed into a file path.
+ * Where to download SKILL.md from: `metadata.raw_url` (HF Discover's GitHub skills), a GitHub
+ * `blob/.../SKILL.md` page rewritten to raw.githubusercontent.com (GitHub's documented raw form),
+ * or any other url ending in SKILL.md (HF Space skills are served by Discover at .../SKILL.md).
+ * Directory pages (GitHub `tree/`) are never fetched or guessed into a file path.
  */
 export function skillSourceUrl(entry: ArdEntry): string | undefined {
 	const raw = entry.metadata?.raw_url;
 	if (typeof raw === "string" && /\/SKILL\.md$/i.test(raw)) return raw;
-	if (!entry.url) return undefined;
-	if (/\/SKILL\.md$/i.test(entry.url) && RAW_HOSTS.has(hostOf(entry.url) ?? "")) return entry.url;
-	const blob = GH_BLOB.exec(entry.url);
+	const url = entry.url ?? "";
+	const blob = GH_BLOB.exec(url);
 	if (blob) return `https://raw.githubusercontent.com/${blob[1]}/${blob[2]}/${blob[3]}`;
-	if (/\.md$/i.test(entry.url) && entry.type === "application/agent-skills+md" && hostOf(entry.url) !== "github.com") {
-		return entry.url;
-	}
+	if (/\/SKILL\.md$/i.test(url) && hostOf(url) !== "github.com") return url;
 	return undefined;
 }
 
-/** Agent Skills name rules (lowercase, digits, single hyphens, <=64). */
-export function skillName(entry: ArdEntry, body: string): string | undefined {
-	const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)?.[1] ?? "";
-	const declared = /^name:\s*["']?([^"'\r\n]+?)["']?\s*$/m.exec(fm)?.[1];
-	const tail = entry.identifier.split(":").pop();
-	const candidate = (declared ?? tail ?? "").trim().toLowerCase();
-	if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(candidate) || candidate.length > 64) return undefined;
-	return candidate;
+/**
+ * Validates a fetched SKILL.md the way Pi's loader does (same YAML parser): Pi silently skips a
+ * skill without a description, so installing one would report success for a skill that never loads.
+ * Name: frontmatter `name`, else the identifier tail; must be a valid Agent Skills name.
+ */
+export function parseSkill(entry: ArdEntry, body: string): { name: string } | { error: string } {
+	if (!/^---\r?\n/.test(body)) return { error: "no YAML frontmatter; not a SKILL.md" };
+	let fm: Record<string, unknown>;
+	try {
+		fm = parseFrontmatter(body).frontmatter;
+	} catch (e) {
+		return { error: `invalid frontmatter: ${e instanceof Error ? e.message.split("\n")[0] : String(e)}` };
+	}
+	if (typeof fm.description !== "string" || !fm.description.trim()) return { error: "frontmatter has no description (Pi would not load it)" };
+	const name = (typeof fm.name === "string" ? fm.name : (entry.identifier.split(":").pop() ?? "")).trim().toLowerCase();
+	if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || name.length > 64) return { error: `invalid Agent Skills name "${name}" (lowercase a-z, 0-9, single hyphens)` };
+	return { name };
 }
 
 function confirmBody(lines: Array<[string, string | undefined]>, warning: string): string {
@@ -107,7 +114,7 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 				["Publisher", t.check.publisher],
 				["Fetch", src],
 				["Into", skillsDir],
-				["Trust", t.trusted ? "trusted" : `UNTRUSTED SOURCE (${t.trustReason})`],
+				["Trust", t.label],
 				["Signature", signatureLabel(t.check)],
 			],
 			"Skills instruct the model to run commands and code with your permissions. Review the SKILL.md after install.",
@@ -117,17 +124,17 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 
 	const res = await request(src, { method: "GET", headers: { accept: "text/markdown, text/plain" } }, { maxBytes: 256_000, ...ctx.http });
 	const body = res.body;
-	if (!/^---\r?\n[\s\S]*?\r?\n---/.test(body)) return { status: "refused", reason: `Fetched file has no YAML frontmatter; not a SKILL.md (${src})` };
-	const name = skillName(entry, body);
-	if (!name) return { status: "refused", reason: "Could not derive a valid Agent Skills name (lowercase a-z, 0-9, hyphens)." };
+	const parsed = parseSkill(entry, body);
+	if ("error" in parsed) return { status: "refused", reason: `Fetched ${src}: ${parsed.error}. Nothing written.` };
+	const { name } = parsed;
 	const dir = join(skillsDir, name);
 	if (existsSync(dir)) return { status: "refused", reason: `Skill "${name}" already exists at ${dir}. Not overwriting.` };
 
 	const sha256 = createHash("sha256").update(body).digest("hex");
+	const lp = lockPath(ctx.agentDir);
+	const lock = readLock(lp); // before any write: a corrupt lock must not leave an orphan SKILL.md
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, "SKILL.md"), body, { flag: "wx" });
-	const lp = lockPath(ctx.agentDir);
-	const lock = readLock(lp);
 	const rec: LockEntry = {
 		identifier: entry.identifier,
 		kind: "skill",
@@ -139,7 +146,17 @@ export async function installSkill(entry: ArdEntry, ctx: InstallContext): Promis
 		trusted: t.trusted,
 	};
 	writeJsonAtomic(lp, { installs: [...lock.filter((l) => l.path !== dir), rec] });
-	return { status: "installed", kind: "skill", name, path: dir, sha256, url: res.url };
+	return { status: "installed", kind: "skill", name, path: dir, sha256, url: res.url, missing: bundledRefs(body) };
+}
+
+/**
+ * Relative paths a SKILL.md refers to (scripts/, references/, assets/...). Only SKILL.md is
+ * installed, so these will be missing. Real case: HF's huggingface-llm-trainer cites
+ * scripts/train_sft_example.py and references/*.md.
+ */
+export function bundledRefs(body: string): string[] {
+	const refs = body.match(/(?<![\w/.:-])(?:\.\/)?(?:scripts|references|assets|templates|examples)\/[\w./-]*[\w-]/g) ?? [];
+	return [...new Set(refs.map((r) => r.replace(/^\.\//, "")))];
 }
 
 // ---------- MCP ----------
@@ -151,43 +168,52 @@ export interface McpPlan {
 	command?: string;
 	args?: string[];
 	description?: string;
-	cardUrl: string;
 }
 
 const MCP_NAME = /^[A-Za-z0-9_-]+$/;
 
-function serverName(raw: string | undefined, entry: ArdEntry): string {
-	const base = (raw ?? entry.identifier.split(":").pop() ?? "ard").split("/").pop()!;
+/**
+ * Session server name from the ARD identifier tail: the publisher chose it and it is unique in the
+ * namespace. Card names are not: HF's official card is named "huggingface.co/mcp", which became
+ * "mcp" and tools "mcp__mcp__*". Prefixed with the publisher's first label when the tail is generic.
+ */
+function serverName(entry: ArdEntry): string {
+	const parts = entry.identifier.split(":");
+	const tail = parts.at(-1) ?? "";
+	const base = /^(mcp|hub|server|default)$/i.test(tail) ? `${(parts[2] ?? "ard").split(".")[0]}-${tail}` : tail;
 	const n = base.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
 	return MCP_NAME.test(n) ? n : "ard-server";
 }
 
-const STDIO_RUNNERS: Record<string, string> = { npm: "npx", pypi: "uvx", oci: "docker" };
+const STDIO_RUNNERS: Record<string, "npx" | "uvx" | "docker"> = { npm: "npx", pypi: "uvx", oci: "docker" };
+/** npm (@scope/name), PyPI and OCI names. No leading "-" (would be parsed as a flag), no spaces or shell syntax. */
+const PKG_ID = /^(@[a-z0-9][\w.-]*\/)?[a-z0-9][\w./:@-]*$/i;
+const PKG_VER = /^[\w.+-]+$/;
 
 /**
  * Map an MCP server card (static.modelcontextprotocol.io server-card schema) or an MCP registry
  * server.json (`{server:{...}}`) to one candidate. Prefers a streamable-http remote; falls back to
- * the first stdio package. Returns undefined if nothing usable.
+ * the first stdio package. The command comes only from registryType (npm/pypi/oci), never from the
+ * card's free-form `runtimeHint`: a card saying `runtimeHint: "bash"` must not choose the program.
  */
-export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPlan | undefined {
+export function planMcp(card: unknown, entry: ArdEntry): McpPlan | undefined {
 	if (!card || typeof card !== "object") return undefined;
 	const doc = ((card as { server?: unknown }).server ?? card) as Record<string, unknown>;
-	const name = serverName(typeof doc.name === "string" ? doc.name : undefined, entry);
+	const name = serverName(entry);
 	const description = typeof doc.description === "string" ? doc.description.slice(0, 200) : undefined;
 	const remotes = Array.isArray(doc.remotes) ? (doc.remotes as Array<Record<string, unknown>>) : [];
 	const remote = remotes.find((r) => typeof r.url === "string" && (r.type === "streamable-http" || r.type === "http")) ??
 		remotes.find((r) => typeof r.url === "string");
-	if (remote) return { name, transport: "http", url: String(remote.url), description, cardUrl };
+	if (remote) return { name, transport: "http", url: String(remote.url), description };
 	const pkgs = Array.isArray(doc.packages) ? (doc.packages as Array<Record<string, unknown>>) : [];
-	const pkg = pkgs.find((p) => typeof p.identifier === "string" && (p.transport as { type?: string } | undefined)?.type === "stdio");
-	if (pkg) {
-		const runner = typeof pkg.runtimeHint === "string" ? pkg.runtimeHint : STDIO_RUNNERS[String(pkg.registryType)];
-		if (!runner) return undefined;
+	for (const pkg of pkgs) {
+		const runner = STDIO_RUNNERS[String(pkg.registryType)];
 		const id = String(pkg.identifier);
-		const ver = typeof pkg.version === "string" ? pkg.version : undefined;
-		const spec = ver ? (runner === "uvx" ? `${id}==${ver}` : runner === "npx" ? `${id}@${ver}` : id) : id;
+		const ver = typeof pkg.version === "string" && PKG_VER.test(pkg.version) ? pkg.version : undefined;
+		if (!runner || (pkg.transport as { type?: string } | undefined)?.type !== "stdio" || !PKG_ID.test(id)) continue;
+		const spec = !ver || runner === "docker" ? id : runner === "uvx" ? `${id}==${ver}` : `${id}@${ver}`;
 		const args = runner === "npx" ? ["-y", spec] : runner === "docker" ? ["run", "-i", "--rm", spec] : [spec];
-		return { name, transport: "stdio", command: runner, args, description, cardUrl };
+		return { name, transport: "stdio", command: runner, args, description };
 	}
 	return undefined;
 }
@@ -213,26 +239,29 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 		// Fetching the card is itself a request to an untrusted host. Ask first.
 		const ok = await ctx.confirm(
 			"Fetch MCP server card from UNTRUSTED source?",
-			confirmBody([["Identifier", entry.identifier], ["Fetch", cardUrl], ["Trust", `UNTRUSTED SOURCE (${t.trustReason})`]], "Only the card is fetched. Nothing is registered yet."),
+			confirmBody([["Identifier", entry.identifier], ["Fetch", cardUrl], ["Trust", t.label]], "Only the card is fetched. Nothing is registered yet."),
 		);
 		if (!ok) return { status: "declined", reason: "User declined. Nothing was fetched or registered." };
 	}
 	if (card === undefined) card = (await getJson(cardUrl, ctx.http)).json;
 
-	const plan = planMcp(card, entry, cardUrl);
+	const plan = planMcp(card, entry);
 	if (!plan) return { status: "refused", reason: `No usable remote or stdio package in server card ${cardUrl}` };
-	if (plan.transport === "http") assertHttps(plan.url!);
+	if (plan.transport === "http") assertSafeUrl(plan.url!);
 
 	const what = plan.transport === "http" ? plan.url! : `${plan.command} ${plan.args!.join(" ")}`;
+	// Trust is about where tool calls go, not only where the card came from: re-assess against the
+	// server URL. A card from a trusted host (or inline data) may name any remote.
+	const st = plan.transport === "http" ? assessTrust(entry, plan.url, ctx.config) : t;
 	const ok = await ctx.confirm(
-		`Add MCP server "${plan.name}" for this session?`,
+		st.trusted ? `Add MCP server "${plan.name}" for this session?` : `Add MCP server "${plan.name}" from UNTRUSTED source?`,
 		confirmBody(
 			[
 				["Identifier", entry.identifier],
 				["Publisher", t.check.publisher],
 				["Card", cardUrl],
 				[plan.transport === "http" ? "Server URL" : "Command", what],
-				["Trust", t.trusted ? "trusted" : `UNTRUSTED SOURCE (${t.trustReason})`],
+				["Trust", st.label],
 				["Signature", signatureLabel(t.check)],
 			],
 			plan.transport === "stdio"
@@ -262,10 +291,6 @@ export async function installMcp(entry: ArdEntry, ctx: McpInstallContext): Promi
 	return { status: "mcp-ready", name: plan.name, transport: "http", url: plan.url!, persistCommand: `pi mcp add ${plan.name} --url ${plan.url}` };
 }
 
-function assertHttps(url: string): void {
-	const u = new URL(url);
-	if (u.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(u.hostname)) throw new Error(`Refusing non-https MCP server URL ${url}`);
-}
 
 // ---------- dispatcher ----------
 

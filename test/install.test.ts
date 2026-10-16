@@ -1,13 +1,13 @@
 import { strict as assert } from "node:assert";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { readLock } from "../src/core/config.ts";
 import { install, planMcp, type McpInstallContext } from "../src/core/install.ts";
 import type { ArdConfig, ArdEntry } from "../src/core/types.ts";
-import { fixtureJson, mockServer, routedHttp, type MockServer } from "./helpers.ts";
+import { fixture, fixtureJson, mockServer, routedHttp, type MockServer } from "./helpers.ts";
 
 const SKILL = "---\nname: pdf-tools\ndescription: PDFs\n---\n# body\n";
 
@@ -43,7 +43,9 @@ describe("install: skills", () => {
 	before(async () => {
 		mock = await mockServer({
 			"GET /example.com/skills/pdf-tools/SKILL.md": () => ({ text: SKILL }),
-			"GET /example.com/notskill.md": () => ({ text: "# no frontmatter" }),
+			// Recorded 2026-10-16 from huggingface/skills; cites scripts/paper_manager.py which is not installed.
+			"GET /example.com/skills/huggingface-paper-publisher/SKILL.md": () => ({ text: fixture("live/hf-skill-paper-publisher.md") }),
+			"GET /example.com/notskill/SKILL.md": () => ({ text: "<html>sign in</html>" }),
 			"GET /untrusted.io/s/SKILL.md": () => ({ text: SKILL.replace("pdf-tools", "other") }),
 		});
 	});
@@ -69,6 +71,21 @@ describe("install: skills", () => {
 		assert.equal(lock!.sha256, createHash("sha256").update(SKILL).digest("hex"));
 		assert.equal(lock!.url, "https://example.com/skills/pdf-tools/SKILL.md");
 		assert.equal(lock!.trusted, true);
+		assert.deepEqual((out as { missing: string[] }).missing, []);
+	});
+
+	it("real HF skill: bundled files it cites are reported missing (only SKILL.md is installed)", async () => {
+		const t = ctx(mock, [true]);
+		const out = await install({ ...skillEntry, identifier: "urn:air:example.com:skill:pp", url: "https://example.com/skills/huggingface-paper-publisher/SKILL.md" }, t.c);
+		assert.deepEqual((out as { missing: string[] }).missing, ["scripts/paper_manager.py"]);
+	});
+
+	it("corrupt lock.json: refuses before writing (was: SKILL.md written, then throw, orphan left)", async () => {
+		const t = ctx(mock, [true]);
+		mkdirSync(join(t.agentDir, "pi-ard"), { recursive: true });
+		writeFileSync(join(t.agentDir, "pi-ard", "lock.json"), "{not json");
+		await assert.rejects(install(skillEntry, t.c), /Corrupt .*lock\.json.*nothing was installed/);
+		assert.ok(!existsSync(join(t.agentDir, "skills", "pdf-tools")));
 	});
 
 	it("never overwrites an existing skill", async () => {
@@ -90,13 +107,13 @@ describe("install: skills", () => {
 	it("trusted publisher but artifact on an untrusted host counts as untrusted", async () => {
 		const t = ctx(mock, [false]);
 		await install({ ...skillEntry, url: "https://untrusted.io/s/SKILL.md" }, t.c);
-		assert.match(t.asked[0]!, /fetch host untrusted\.io not in trustedDomains/);
+		assert.match(t.asked[0]!, /host untrusted\.io not in trustedDomains/);
 	});
 
 	it("non-SKILL.md content refused after fetch, nothing written", async () => {
 		const t = ctx(mock, [true]);
-		const out = await install({ ...skillEntry, url: "https://example.com/notskill.md" }, t.c);
-		assert.equal(out.status, "refused");
+		const out = await install({ ...skillEntry, url: "https://example.com/notskill/SKILL.md" }, t.c);
+		assert.match((out as { reason: string }).reason, /no YAML frontmatter/);
 		assert.ok(!existsSync(join(t.agentDir, "skills", "pdf-tools")));
 	});
 
@@ -105,12 +122,6 @@ describe("install: skills", () => {
 		const out = await install({ ...skillEntry, trustManifest: { identity: "spiffe://evil.com/x" } }, t.c);
 		assert.equal(out.status, "refused");
 		assert.equal(t.asked.length, 0);
-	});
-
-	it("declared trust manifest shown as NOT verified", async () => {
-		const t = ctx(mock, [false]);
-		await install({ ...skillEntry, trustManifest: { identity: "spiffe://example.com/x", trustSchema: { identifier: "ai-card-trust" } } }, t.c);
-		assert.match(t.asked[0]!, /trust manifest declared \(ai-card-trust\), signature NOT verified/);
 	});
 
 	it("unresolvable source (GitHub tree page) refused without asking", async () => {
@@ -134,12 +145,12 @@ describe("install: MCP", () => {
 
 	const hfEntry = (fixtureJson("live/hf-ai-catalog.json") as { entries: ArdEntry[] }).entries.find((e) => e.type === "application/mcp-server-card+json")!;
 
-	it("HF real card: one confirm, session registration, persist command returned", async () => {
+	it("HF real card: one confirm; named from the identifier (card name \"huggingface.co/mcp\" would give mcp__mcp__*)", async () => {
 		const t = ctx(mock, [true]);
 		const out = await install(hfEntry, t.c);
 		assert.equal(out.status, "mcp-ready");
-		assert.deepEqual(t.registered, [["mcp", { url: "https://huggingface.co/mcp", description: "Official MCP server for the Hugging Face Hub." }]]);
-		assert.equal((out as { persistCommand: string }).persistCommand, "pi mcp add mcp --url https://huggingface.co/mcp");
+		assert.deepEqual(t.registered, [["huggingface-hub", { url: "https://huggingface.co/mcp", description: "Official MCP server for the Hugging Face Hub." }]]);
+		assert.equal((out as { persistCommand: string }).persistCommand, "pi mcp add huggingface-hub --url https://huggingface.co/mcp");
 		assert.equal(t.asked.length, 1);
 	});
 
@@ -172,9 +183,17 @@ describe("install: MCP", () => {
 		assert.equal(t.http.calls.length, 0);
 	});
 
+	it("trust follows the server URL: a trusted card naming another host's remote is UNTRUSTED", async () => {
+		// Before: only the card URL was assessed, so this prompted "Trust: trusted" for attacker.example.
+		const t = ctx(mock, [false]);
+		await install({ identifier: "urn:air:huggingface.co:mcp:x", type: "application/mcp-server-card+json", data: { name: "x", remotes: [{ type: "streamable-http", url: "https://attacker.example/mcp" }] } }, t.c);
+		assert.match(t.asked[0]!, /^Add MCP server "x" from UNTRUSTED source\?/);
+		assert.match(t.asked[0]!, /host attacker\.example not in trustedDomains/);
+	});
+
 	it("plain-http MCP remote refused", async () => {
 		const t = ctx(mock, []);
-		await assert.rejects(install({ identifier: "urn:air:example.com:mcp:x", type: "application/mcp-server-card+json", url: "https://example.com/plain-http-card" }, t.c), /non-https/);
+		await assert.rejects(install({ identifier: "urn:air:example.com:mcp:x", type: "application/mcp-server-card+json", url: "https://example.com/plain-http-card" }, t.c), /Only https/);
 		assert.equal(t.registered.length, 0);
 	});
 
@@ -185,11 +204,15 @@ describe("install: MCP", () => {
 		assert.match(JSON.stringify(await install({ identifier: "urn:air:x.com:a:b", type: "text/html", url: "https://x.com" }, t.c)), /Unsupported/);
 	});
 
-	it("planMcp: prefers streamable-http remote; stdio pins version", () => {
-		const p = planMcp(fixtureJson("live/hf-mcp-server-card.json"), hfEntry, "u")!;
-		assert.equal(p.transport, "http");
-		const s = planMcp(fixtureJson("live/mcp-registry-markitdown.json"), { identifier: "urn:air:a.com:m:x" }, "u")!;
+	it("planMcp: stdio pins version; hostile cards cannot pick the program", () => {
+		const s = planMcp(fixtureJson("live/mcp-registry-markitdown.json"), { identifier: "urn:air:a.com:m:x" })!;
 		assert.deepEqual([s.transport, s.command, s.args], ["stdio", "uvx", ["markitdown-mcp==0.0.1a4"]]);
-		assert.equal(planMcp({ name: "x" }, { identifier: "urn:air:a.com:m:x" }, "u"), undefined);
+		assert.equal(planMcp({ name: "x" }, { identifier: "urn:air:a.com:m:x" }), undefined);
+		// A card must not pick the program or inject flags: runtimeHint is ignored, ids are validated.
+		const hostile = (p: Record<string, unknown>) => planMcp({ packages: [{ transport: { type: "stdio" }, ...p }] }, { identifier: "urn:air:a.com:m:x" });
+		assert.deepEqual(hostile({ identifier: "x", registryType: "pypi", runtimeHint: "bash" })?.command, "uvx");
+		assert.equal(hostile({ identifier: "-c", registryType: "pypi" }), undefined);
+		assert.equal(hostile({ identifier: "a b", registryType: "npm" }), undefined);
+		assert.deepEqual(hostile({ identifier: "x", registryType: "npm", version: "1;rm -rf ~" })?.args, ["-y", "x"]);
 	});
 });

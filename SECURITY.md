@@ -16,7 +16,7 @@ pi-ard moves third-party content (registry results, SKILL.md files, MCP server c
 - **Project-level hijack.** Config is read from the user's agent dir only, never from the working directory.
 
 **Not defended (known gaps)**
-- **Signature or attestation verification.** It is not implemented, because ARD v0.91 delegates it to trust frameworks that are not finalized. pi-ard labels declared manifests "signature NOT verified".
+- **Signature or attestation verification.** It is not implemented, because ARD v0.91 delegates it to trust frameworks that are not finalized. pi-ard shows declared attestation types and labels them "signature and attestations NOT verified".
 - **Malicious content from a trusted domain.** Trust means only that the owner allowlisted the domain. Review the SKILL.md after install.
 - **Prompt injection in descriptions.** Output labels descriptions as third-party data, but a model can still be influenced by them. The confirm step is the backstop.
 - **What an MCP server does after you add it.** That is Pi's MCP runtime and the server's own responsibility.

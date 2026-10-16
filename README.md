@@ -32,9 +32,11 @@ Config lives at `~/.pi/agent/pi-ard/config.json` (override with `PI_ARD_CONFIG`)
     { "name": "huggingface", "url": "https://huggingface-hf-discover.hf.space" },
     { "name": "github",      "searchUrl": "https://agentfinder.github.com/api/v1/search" }
   ],
-  "trustedDomains": ["internal.example.com", "huggingface.co", "raw.githubusercontent.com"]
+  "trustedDomains": ["internal.example.com", "huggingface.co", "github.com", "raw.githubusercontent.com"]
 }
 ```
+
+Trust follows the identifier, not the registry that returned it. Hugging Face's own skills come back from HF Discover as `urn:air:github.com:huggingface:skills:…` with the file on `raw.githubusercontent.com`, so trusting them takes `github.com` and `raw.githubusercontent.com`. Note that `github.com` then covers every GitHub-hosted publisher, not just Hugging Face; that is the granularity ARD's `urn:air:<domain>` gives today.
 
 - `url` is a registry base URL; `/search` is appended. `searchUrl` is used exactly as given, for registries that serve search somewhere else.
 - The first registry is the default. The model can name another one by its `name`.
@@ -54,7 +56,7 @@ ARD v0.91 defines a `trustManifest` (identity, attestations, provenance) but lea
 | 15 s timeout and 1 MB response cap (256 KB for SKILL.md) | enforced |
 | Entry structure (§4): `urn:air` identifier, exactly one of `url` or `data` | enforced. Invalid entries are listed but cannot be installed. |
 | §4.5.1 publisher binding: `trustManifest.identity` (SPIFFE, did:web, https) must be in the publisher's domain | enforced. A mismatch is refused. |
-| `trustManifest` present | shown as **"trust manifest declared, signature NOT verified"** |
+| `trustManifest` present | shown with the declared attestation types, labeled **"signature and attestations NOT verified"** |
 | Signature or attestation verification | **not done**. pi-ard has nothing to verify against yet, so it never claims verification. |
 | Installed skill integrity | Source URL and sha256 are recorded in `<agent-dir>/pi-ard/lock.json` |
 
@@ -65,8 +67,9 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 ## What gets installed, and how
 
 **Skills** (`application/agent-skills+md`, plus the `application/ai-skill` alias that HF and GitHub return):
-- The source URL is resolved from `metadata.raw_url`, from a raw SKILL.md URL, or from a GitHub `blob/…/SKILL.md` URL rewritten to `raw.githubusercontent.com`. GitHub `tree/` directory pages are refused, never guessed.
-- You confirm **before** anything is fetched. The file must have YAML frontmatter and a valid Agent Skills name. pi-ard never overwrites an existing skill.
+- The source URL is resolved from `metadata.raw_url`, from a GitHub `blob/…/SKILL.md` URL rewritten to `raw.githubusercontent.com`, or from any other URL ending in `SKILL.md` (HF Space skills are served by Discover that way). GitHub `tree/` directory pages are refused, never guessed.
+- You confirm **before** anything is fetched. The file must have frontmatter with a `description` (Pi skips skills without one) and a valid Agent Skills name. pi-ard never overwrites an existing skill.
+- Only `SKILL.md` is installed. If it cites bundled files (`scripts/…`, `references/…`), the result lists them as missing so you can fetch the rest from the source.
 - Run `/reload` to load the skill.
 
 **MCP servers** (`application/mcp-server-card+json`, plus the `application/mcp-server+json` alias from the MCP registry):
@@ -76,26 +79,15 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 
 **A2A agents, registries and nested catalogs** are shown in results but not installed. The tool explains what to do instead.
 
-## Without Pi
-
-`pi-ard/core` is the ARD client with no Pi dependency:
-
-```ts
-import { search, fetchCatalog, checkEntry } from "pi-ard/core";
-const r = await search({ name: "hf", url: "https://huggingface-hf-discover.hf.space" }, { text: "pdf" });
-```
-
-See [`examples/search-public-registries.ts`](examples/search-public-registries.ts).
-
 ## Why not an ARD SDK?
 
-As of 2026-10 there is no official ARD SDK. The `ards-project` org publishes only the spec and connectors. The npm packages `ai-catalog` and `ai-catalog-sdk` implement the predecessor AI Catalog format, not the v0.91 `/search` API. The client here is small and isolated in `src/core`, so it can be swapped for an official SDK when one ships. See [docs/DESIGN.md](docs/DESIGN.md).
+As of 2026-10 there is no official ARD SDK. The `ards-project` org publishes only the spec and connectors. The npm packages `ai-catalog` and `ai-catalog-sdk` implement the predecessor AI Catalog format, not the v0.91 `/search` API. The client here is small and isolated in `src/core` (no Pi imports), so it can be swapped for an official SDK when one ships. See [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Development
 
 ```
 npm ci
-npm run check          # typecheck + 56 offline tests (unit, contract, real Pi AgentSession e2e)
+npm run check          # typecheck + offline tests (unit, contract, real Pi AgentSession e2e)
 npm run test:live      # opt-in: real Hugging Face + GitHub registries
 node --experimental-strip-types examples/rpc-smoke.ts   # real `pi --mode rpc`, confirm over RPC
 ```
