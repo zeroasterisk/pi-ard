@@ -36,7 +36,7 @@ describe("live registries", () => {
 	});
 
 	it("end-to-end: search HF for a skill, resolve raw SKILL.md, install to temp dir", opts, async () => {
-		const r = await search(DEFAULT_CONFIG.registries[0]!, { text: "paper", types: ["application/ai-skill"], pageSize: 10 });
+		const r = await search(DEFAULT_CONFIG.registries[0]!, { text: "paper", types: ["application/agent-skills+md"], pageSize: 10 });
 		const entry = r.results.find((e) => skillSourceUrl(e));
 		assert.ok(entry, "a result with a resolvable SKILL.md");
 		const agentDir = mkdtempSync(join(tmpdir(), "pi-ard-live-"));

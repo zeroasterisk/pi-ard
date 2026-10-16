@@ -1,4 +1,4 @@
-import { checkEntry } from "./entry.ts";
+import { checkEntry, expandTypes } from "./entry.ts";
 import { type HttpOptions, ArdHttpError, getJson, postJson } from "./http.ts";
 import type { ArdEntry, RegistryConfig } from "./types.ts";
 
@@ -41,7 +41,7 @@ export async function search(registry: RegistryConfig, p: SearchParams, http?: H
 	const endpoint = searchEndpoint(registry);
 	const pageSize = Math.min(Math.max(1, Math.trunc(p.pageSize ?? 10)), 100);
 	const body: Record<string, unknown> = {
-		query: { text: p.text, ...(p.types?.length ? { filter: { type: p.types } } : {}) },
+		query: { text: p.text, ...(p.types?.length ? { filter: { type: expandTypes(p.types) } } : {}) },
 		federation: p.federation ?? registry.federation ?? "none",
 		pageSize,
 	};
