@@ -143,12 +143,12 @@ describe("install: MCP", () => {
 
 	const hfEntry = (fixtureJson("live/hf-ai-catalog.json") as { entries: ArdEntry[] }).entries.find((e) => e.type === "application/mcp-server-card+json")!;
 
-	it("HF real card: one confirm, session registration, persist command returned", async () => {
+	it("HF real card: one confirm; named from the identifier (card name \"huggingface.co/mcp\" would give mcp__mcp__*)", async () => {
 		const t = ctx(mock, [true]);
 		const out = await install(hfEntry, t.c);
 		assert.equal(out.status, "mcp-ready");
-		assert.deepEqual(t.registered, [["mcp", { url: "https://huggingface.co/mcp", description: "Official MCP server for the Hugging Face Hub." }]]);
-		assert.equal((out as { persistCommand: string }).persistCommand, "pi mcp add mcp --url https://huggingface.co/mcp");
+		assert.deepEqual(t.registered, [["huggingface-hub", { url: "https://huggingface.co/mcp", description: "Official MCP server for the Hugging Face Hub." }]]);
+		assert.equal((out as { persistCommand: string }).persistCommand, "pi mcp add huggingface-hub --url https://huggingface.co/mcp");
 		assert.equal(t.asked.length, 1);
 	});
 

@@ -5,6 +5,7 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 ## [Unreleased]
 
 ### Fixed
+- MCP server names come from the ARD identifier, not the card. HF's official card is named `huggingface.co/mcp`, which registered as `mcp` (tools `mcp__mcp__*`); it is now `huggingface-hub`.
 - Skill installs report bundled files the SKILL.md cites but that were not installed (e.g. HF `huggingface-paper-publisher` → `scripts/paper_manager.py`). Only SKILL.md is fetched; the result used to read as a complete install.
 - Skills without a frontmatter `description` are refused. Pi silently skips them, so they used to install "successfully" and never load. Frontmatter is now parsed with Pi's own `parseFrontmatter` (handles YAML folding) instead of a regex.
 - Type filters now include the registry aliases of the same kind. Live HF returned 0 skills for `application/agent-skills+md` (it indexes `application/ai-skill`); GitHub likewise for MCP.

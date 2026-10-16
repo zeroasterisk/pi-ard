@@ -176,8 +176,15 @@ export interface McpPlan {
 
 const MCP_NAME = /^[A-Za-z0-9_-]+$/;
 
-function serverName(raw: string | undefined, entry: ArdEntry): string {
-	const base = (raw ?? entry.identifier.split(":").pop() ?? "ard").split("/").pop()!;
+/**
+ * Session server name from the ARD identifier tail: the publisher chose it and it is unique in the
+ * namespace. Card names are not: HF's official card is named "huggingface.co/mcp", which became
+ * "mcp" and tools "mcp__mcp__*". Prefixed with the publisher's first label when the tail is generic.
+ */
+function serverName(entry: ArdEntry): string {
+	const parts = entry.identifier.split(":");
+	const tail = parts.at(-1) ?? "";
+	const base = /^(mcp|hub|server|default)$/i.test(tail) ? `${(parts[2] ?? "ard").split(".")[0]}-${tail}` : tail;
 	const n = base.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
 	return MCP_NAME.test(n) ? n : "ard-server";
 }
@@ -192,7 +199,7 @@ const STDIO_RUNNERS: Record<string, string> = { npm: "npx", pypi: "uvx", oci: "d
 export function planMcp(card: unknown, entry: ArdEntry, cardUrl: string): McpPlan | undefined {
 	if (!card || typeof card !== "object") return undefined;
 	const doc = ((card as { server?: unknown }).server ?? card) as Record<string, unknown>;
-	const name = serverName(typeof doc.name === "string" ? doc.name : undefined, entry);
+	const name = serverName(entry);
 	const description = typeof doc.description === "string" ? doc.description.slice(0, 200) : undefined;
 	const remotes = Array.isArray(doc.remotes) ? (doc.remotes as Array<Record<string, unknown>>) : [];
 	const remote = remotes.find((r) => typeof r.url === "string" && (r.type === "streamable-http" || r.type === "http")) ??
