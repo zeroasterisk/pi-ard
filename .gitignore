@@ -3,3 +3,5 @@ node_modules/
 .DS_Store
 coverage/
 *.tmp
+__pycache__/
+*.pyc
