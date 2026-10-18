@@ -4,6 +4,8 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-18
+
 ### Changed
 - Releases publish from CI via npm trusted publishing (GitHub OIDC): no npm token, provenance attached. npm publish runs before the GitHub release so a failed publish leaves no release.
 
