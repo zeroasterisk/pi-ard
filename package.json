@@ -1,6 +1,6 @@
 {
 	"name": "pi-ard",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Agentic Resource Discovery (ARD) for Pi: search any ARD registry, browse catalogs, install skills and add MCP servers after you confirm.",
 	"type": "module",
 	"license": "Apache-2.0",
@@ -20,6 +20,10 @@
 		"mcp",
 		"agent-skills"
 	],
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
 	"engines": {
 		"node": ">=22.18"
 	},
@@ -37,7 +41,8 @@
 	"pi": {
 		"extensions": [
 			"./src/extension.ts"
-		]
+		],
+		"image": "https://raw.githubusercontent.com/zeroasterisk/pi-ard/main/demo/pi-ard.gif"
 	},
 	"scripts": {
 		"check": "tsc -p . && npm test",

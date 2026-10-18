@@ -3,8 +3,10 @@
 [Agentic Resource Discovery (ARD)](https://github.com/ards-project/ard-spec) for [Pi](https://pi.dev). It lets Pi search any ARD registry and browse a domain's catalog. Skills and MCP servers are installed only after **you** confirm in Pi's UI.
 
 ```
-pi install git:github.com/zeroasterisk/pi-ard
+pi install npm:pi-ard
 ```
+
+or from git: `pi install git:github.com/zeroasterisk/pi-ard`
 
 > find me an MCP server for Hugging Face and add it
 

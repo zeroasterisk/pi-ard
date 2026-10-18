@@ -4,7 +4,10 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-18
+
 ### Added
+- Published to npm (`pi install npm:pi-ard`), with provenance from CI; gallery preview via `pi.image`.
 - `docs/SCENARIOS.md` + `examples/huggingface-scenarios.ts`: five live Hugging Face scenarios with exact confirm text.
 - `demo/`: asciicast of a real Pi session (install, search, confirm, install skill, add MCP) and the PTY recorder that made it.
 
