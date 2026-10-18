@@ -1,6 +1,6 @@
 {
 	"name": "pi-ard",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Agentic Resource Discovery (ARD) for Pi: search any ARD registry, browse catalogs, install skills and add MCP servers after you confirm.",
 	"type": "module",
 	"license": "Apache-2.0",
