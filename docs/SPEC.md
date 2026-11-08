@@ -7,7 +7,7 @@ Let a Pi user discover ARD resources across **any** ARD registry the owner confi
 
 ## Non-goals (v0.1)
 - Signature or attestation verification. ARD v0.91 delegates it to trust frameworks, and none are finalized.
-- Running A2A agents. Federated search fan-out (referrals are shown, not followed). Auto-update.
+- Running A2A agents (`ard_install` refuses them and points to `@bacnh85/pi-a2a` >= 0.9.0). Federated search fan-out (referrals are shown, not followed). Auto-update.
 - Reading config from project directories, since a cloned repo must not be able to add registries or trust.
 
 ## Rules

@@ -4,6 +4,9 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 
 ## [Unreleased]
 
+### Changed
+- `ard_install` on an A2A agent card now names the package to use: `pi install npm:@bacnh85/pi-a2a` (0.9.0 or later, which passes A2A v1.0 interop in a2a-itk). (#8)
+
 ## [0.2.1] - 2026-10-18
 
 ### Changed
