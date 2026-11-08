@@ -84,7 +84,7 @@ When a trust framework is finalized, verification goes in `src/core/entry.ts` (`
 - A streamable-http remote is preferred and must be HTTPS. For stdio packages (`uvx`, `npx` or `docker`, with the version pinned) you confirm **twice**, because a stdio server runs a local process.
 - Servers are registered for the current session only, through `pi.registerMcpServer`. The result includes the `pi mcp add …` command if you want to keep it.
 
-**A2A agents, registries and nested catalogs** are shown in results but not installed. The tool explains what to do instead.
+**A2A agents, registries and nested catalogs** are shown in results but not installed. The tool explains what to do instead. For A2A agents that is `pi install npm:@bacnh85/pi-a2a` (0.9.0 or later).
 
 ## Why not an ARD SDK?
 

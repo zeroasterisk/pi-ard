@@ -197,6 +197,14 @@ describe("install: MCP", () => {
 		assert.equal(t.registered.length, 0);
 	});
 
+	it("A2A refusal names the pi-a2a package and installs nothing", async () => {
+		const t = ctx(mock, []);
+		const out = await install({ identifier: "urn:air:x.com:a:b", type: "application/a2a-agent-card+json", url: "https://x.com/c" }, t.c);
+		assert.equal(out.status, "refused");
+		assert.match((out as { reason: string }).reason, /pi install npm:@bacnh85\/pi-a2a \(0\.9\.0 or later\)/);
+		assert.equal(t.registered.length, 0);
+	});
+
 	it("A2A / registry / unknown types refused with guidance", async () => {
 		const t = ctx(mock, []);
 		assert.match(JSON.stringify(await install({ identifier: "urn:air:x.com:a:b", type: "application/a2a-agent-card+json", url: "https://x.com/c" }, t.c)), /A2A/);

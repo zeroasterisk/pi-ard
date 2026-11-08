@@ -298,7 +298,7 @@ export async function install(entry: ArdEntry, ctx: McpInstallContext): Promise<
 	const kind = checkEntry(entry, false).kind;
 	if (kind === "skill") return installSkill(entry, ctx);
 	if (kind === "mcp") return installMcp(entry, ctx);
-	if (kind === "a2a") return { status: "refused", reason: `A2A agent card at ${entry.url ?? "(inline)"}. pi-ard does not run A2A; use an A2A package.` };
+	if (kind === "a2a") return { status: "refused", reason: `A2A agent card at ${entry.url ?? "(inline)"}. pi-ard does not run A2A; use an A2A package: pi install npm:@bacnh85/pi-a2a (0.9.0 or later).` };
 	if (kind === "registry") return { status: "refused", reason: "This is a registry. Add it to config.json registries instead (see /ard)." };
 	if (kind === "catalog") return { status: "refused", reason: "This is a nested catalog. Use ard_catalog with its url." };
 	return { status: "refused", reason: `Unsupported type ${entry.type ?? "(none)"}.` };
